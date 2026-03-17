@@ -45,8 +45,11 @@ function getOptionPrice(id: string): number {
 function generatePiecesList(config: FurnitureConfig): PieceInfo[] {
   const { width, height, depth } = config.dimensions;
   const { columns, rows, columnWidths, rowHeights } = config.compartments;
-  const bodyMat = getMaterialById(config.bodyMaterialId)?.name || 'N/A';
-  const frontMat = getMaterialById(config.frontMaterialId)?.name || 'N/A';
+  const bodyMatObj = getMaterialById(config.bodyMaterialId);
+  const frontMatObj = getMaterialById(config.frontMaterialId);
+  // Use full product code (id) when it differs from the display name (EGGER convention)
+  const bodyMat = bodyMatObj ? (bodyMatObj.id !== bodyMatObj.name ? bodyMatObj.id : bodyMatObj.name) : 'N/A';
+  const frontMat = frontMatObj ? (frontMatObj.id !== frontMatObj.name ? frontMatObj.id : frontMatObj.name) : 'N/A';
 
   const pieces: PieceInfo[] = [];
   const t = PANEL_THICKNESS;
@@ -374,9 +377,9 @@ function drawSideView(
 }
 
 /**
- * Export the full PDF document
+ * Build the full PDF document and return jsPDF instance.
  */
-export function exportPDF(config: FurnitureConfig, price: PriceBreakdown) {
+function createPDFDocument(config: FurnitureConfig, price: PriceBreakdown) {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageW = 210;
   const pageH = 297;
@@ -385,6 +388,9 @@ export function exportPDF(config: FurnitureConfig, price: PriceBreakdown) {
 
   const bodyMat = getMaterialById(config.bodyMaterialId);
   const frontMat = getMaterialById(config.frontMaterialId);
+  // Full product code for PDF display (e.g. EGGER_F206_ST9_Black Pietra Grigia)
+  const bodyMatCode = bodyMat ? (bodyMat.id !== bodyMat.name ? bodyMat.id : bodyMat.name) : 'N/A';
+  const frontMatCode = frontMat ? (frontMat.id !== frontMat.name ? frontMat.id : frontMat.name) : 'N/A';
   const catName = getCategoryName(config);
   const delivery = getDeliveryEstimate(config);
   const dateStr = new Date().toLocaleDateString('ro-RO', {
@@ -429,7 +435,7 @@ export function exportPDF(config: FurnitureConfig, price: PriceBreakdown) {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   doc.text(
-    `Dimensiuni: ${config.dimensions.width} × ${config.dimensions.height} × ${config.dimensions.depth} cm | Material corp: ${bodyMat?.name || 'N/A'} | Material fronturi: ${frontMat?.name || 'N/A'}`,
+    `Dimensiuni: ${config.dimensions.width} × ${config.dimensions.height} × ${config.dimensions.depth} cm | Material corp: ${bodyMatCode} | Material fronturi: ${frontMatCode}`,
     margin,
     curY
   );
@@ -758,7 +764,30 @@ export function exportPDF(config: FurnitureConfig, price: PriceBreakdown) {
     });
   }
 
-  // Save
-  const filename = `milimetric_${config.category}_${config.dimensions.width}x${config.dimensions.height}x${config.dimensions.depth}_desen-tehnic.pdf`;
-  doc.save(filename);
+  return doc;
+}
+
+export function getPDFFileName(config: FurnitureConfig): string {
+  return `milimetric_${config.category}_${config.dimensions.width}x${config.dimensions.height}x${config.dimensions.depth}_desen-tehnic.pdf`;
+}
+
+/**
+ * Export technical PDF to local file.
+ */
+export function exportPDF(config: FurnitureConfig, price: PriceBreakdown) {
+  const doc = createPDFDocument(config, price);
+  doc.save(getPDFFileName(config));
+}
+
+/**
+ * Generate technical PDF as Blob (for API upload / email attachment).
+ */
+export function generatePDFBlob(config: FurnitureConfig, price: PriceBreakdown): Blob {
+  const doc = createPDFDocument(config, price);
+  return doc.output('blob');
+}
+
+export function generatePDFBase64(config: FurnitureConfig, price: PriceBreakdown): string {
+  const doc = createPDFDocument(config, price);
+  return doc.output('datauristring').split(',')[1] || '';
 }

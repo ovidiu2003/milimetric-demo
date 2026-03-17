@@ -10,6 +10,27 @@ interface FurnitureModelProps {
   onClick?: (row: number, col: number) => void;
 }
 
+function cloneTextureWithRotation(
+  source: THREE.Texture | null,
+  rotation: number
+): THREE.Texture | null {
+  if (!source) return null;
+
+  const texture = source.clone();
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.center.set(0.5, 0.5);
+  texture.rotation = rotation;
+  texture.repeat.set(3, 3);
+  texture.needsUpdate = true;
+
+  return texture;
+}
+
 /** Animated front wrapper — handles hover-to-open for doors/drawers/flaps */
 function AnimatedFront({
   children,
@@ -116,6 +137,50 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
 
   const bodyColor = bodyMaterial?.color || '#f0f0f0';
   const frontColor = frontMaterial?.color || '#f0f0f0';
+  const bodyTexture = useMemo(() => {
+    if (!bodyMaterial?.textureUrl) return null;
+    const texture = new THREE.TextureLoader().load(bodyMaterial.textureUrl);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 8;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.repeat.set(3, 3);
+    return texture;
+  }, [bodyMaterial?.textureUrl]);
+  const frontTexture = useMemo(() => {
+    if (!frontMaterial?.textureUrl) return null;
+    const texture = new THREE.TextureLoader().load(frontMaterial.textureUrl);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 8;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.repeat.set(3, 3);
+    return texture;
+  }, [frontMaterial?.textureUrl]);
+  const bodyMatColor = bodyTexture ? '#ffffff' : bodyColor;
+  const frontMatColor = frontTexture ? '#ffffff' : frontColor;
+  const unifiedFrontTexture = frontTexture || bodyTexture;
+  const unifiedFrontColor = frontTexture ? '#ffffff' : bodyMatColor;
+  const horizontalBodyTexture = useMemo(
+    () => cloneTextureWithRotation(bodyTexture, Math.PI / 2),
+    [bodyTexture]
+  );
+  const verticalBodyTexture = useMemo(
+    () => cloneTextureWithRotation(bodyTexture, 0),
+    [bodyTexture]
+  );
+  const horizontalFrontTexture = useMemo(
+    () => cloneTextureWithRotation(unifiedFrontTexture, Math.PI / 2),
+    [unifiedFrontTexture]
+  );
+  const verticalFrontTexture = useMemo(
+    () => cloneTextureWithRotation(unifiedFrontTexture, 0),
+    [unifiedFrontTexture]
+  );
 
   const { width, height, depth } = config.dimensions;
   const { columns, rows, columnWidths, rowHeights } = config.compartments;
@@ -183,7 +248,7 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
         {/* Table top */}
         <mesh position={[0, 0, 0]} castShadow receiveShadow>
           <boxGeometry args={[w, thickness * 2, d]} />
-          <meshStandardMaterial color={bodyColor} roughness={0.3} />
+          <meshStandardMaterial color={bodyMatColor} map={horizontalBodyTexture || undefined} roughness={0.3} />
         </mesh>
         {/* Table legs */}
         {[
@@ -194,7 +259,7 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
         ].map((pos, i) => (
           <mesh key={i} position={pos as [number, number, number]} castShadow>
             <boxGeometry args={[0.05, 0.76, 0.05]} />
-            <meshStandardMaterial color={bodyColor} roughness={0.4} />
+            <meshStandardMaterial color={bodyMatColor} map={verticalBodyTexture || undefined} roughness={0.4} />
           </mesh>
         ))}
       </group>
@@ -212,32 +277,32 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
       {config.backPanel && (
         <mesh position={[0, 0, -d / 2 + thickness / 4]} castShadow receiveShadow>
           <boxGeometry args={[w, h, thickness / 2]} />
-          <meshStandardMaterial color={bodyColor} roughness={0.5} />
+          <meshStandardMaterial color={bodyMatColor} map={verticalBodyTexture || undefined} roughness={0.5} />
         </mesh>
       )}
 
       {/* Top panel */}
       <mesh position={[0, h / 2 - thickness / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[w, thickness, d]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.4} />
+        <meshStandardMaterial color={bodyMatColor} map={horizontalBodyTexture || undefined} roughness={0.4} />
       </mesh>
 
       {/* Bottom panel */}
       <mesh position={[0, -h / 2 + thickness / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[w, thickness, d]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.4} />
+        <meshStandardMaterial color={bodyMatColor} map={horizontalBodyTexture || undefined} roughness={0.4} />
       </mesh>
 
       {/* Left side panel */}
       <mesh position={[-w / 2 + thickness / 2, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[thickness, h, d]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.4} />
+        <meshStandardMaterial color={bodyMatColor} map={verticalBodyTexture || bodyTexture || undefined} roughness={0.4} />
       </mesh>
 
       {/* Right side panel */}
       <mesh position={[w / 2 - thickness / 2, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[thickness, h, d]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.4} />
+        <meshStandardMaterial color={bodyMatColor} map={verticalBodyTexture || bodyTexture || undefined} roughness={0.4} />
       </mesh>
 
       {/* Vertical dividers */}
@@ -249,7 +314,7 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
           dividers.push(
             <mesh key={`vdiv-${i}`} position={[xPos + thickness / 2, 0, 0]} castShadow>
               <boxGeometry args={[thickness, h - thickness * 2, d]} />
-              <meshStandardMaterial color={bodyColor} roughness={0.4} />
+              <meshStandardMaterial color={bodyMatColor} map={verticalBodyTexture || undefined} roughness={0.4} />
             </mesh>
           );
           xPos += thickness;
@@ -280,7 +345,7 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
                   castShadow
                 >
                   <boxGeometry args={[colW, thickness, d - thickness / 2]} />
-                  <meshStandardMaterial color={bodyColor} roughness={0.4} />
+                  <meshStandardMaterial color={bodyMatColor} map={horizontalBodyTexture || undefined} roughness={0.4} />
                 </mesh>
               );
             }
@@ -302,10 +367,11 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
           selectedCompartment?.row === front.row && selectedCompartment?.col === front.col;
         const color = isSelected ? '#4a9eff' : frontColor;
 
-        // Applied fronts overlap slightly beyond the compartment opening
-        const appliedW = comp.cw + thickness * 0.5;
-        const appliedH = comp.ch + thickness * 0.5;
-        const gap = 0.001; // 1mm gap between adjacent fronts
+        // Full-overlay fronts: each front covers half of surrounding panel thickness
+        // so fronts are visually applied, not inset in the opening.
+        const reveal = 0.001; // 1mm reveal between adjacent fronts
+        const appliedW = comp.cw + thickness - reveal;
+        const appliedH = comp.ch + thickness - reveal;
 
         if (front.frontType === 'sertar') {
           return (
@@ -325,13 +391,14 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
                     onClick?.(front.row, front.col);
                   }}
                 >
-                  <boxGeometry args={[appliedW - gap, appliedH - gap, thickness / 2]} />
-                  <meshStandardMaterial color={color} roughness={0.25} />
-                </mesh>
-                {/* Drawer handle bar */}
-                <mesh position={[0, 0, thickness / 3]}>
-                  <boxGeometry args={[appliedW * 0.28, 0.005, 0.009]} />
-                  <meshStandardMaterial color="#999" metalness={0.9} roughness={0.15} />
+                  <boxGeometry args={[appliedW, appliedH, thickness / 2]} />
+                  <meshStandardMaterial
+                    color={color}
+                    map={isSelected ? undefined : (horizontalFrontTexture || undefined)}
+                    roughness={0.62}
+                    metalness={0.02}
+                    envMapIntensity={0.06}
+                  />
                 </mesh>
               </group>
             </AnimatedFront>
@@ -363,43 +430,48 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
                     onClick?.(front.row, front.col);
                   }}
                 >
-                  <boxGeometry args={[appliedW - gap, appliedH - gap, thickness / 2]} />
-                  <meshStandardMaterial
-                    color={isGlass ? '#e8f4f8' : isMirror ? '#c0c8d0' : color}
-                    roughness={isGlass ? 0.1 : isMirror ? 0.05 : 0.25}
-                    transparent={isGlass}
-                    opacity={isGlass ? 0.35 : 1}
-                    metalness={isMirror ? 0.9 : 0}
-                  />
+                  <boxGeometry args={[appliedW, appliedH, thickness / 2]} />
+                  {isGlass || isMirror ? (
+                    <meshStandardMaterial
+                      color={isGlass ? '#e8f4f8' : '#c0c8d0'}
+                      roughness={isGlass ? 0.1 : 0.05}
+                      transparent={isGlass}
+                      opacity={isGlass ? 0.35 : 1}
+                      metalness={isMirror ? 0.9 : 0}
+                    />
+                  ) : (
+                    <meshStandardMaterial
+                      color={isSelected ? '#4a9eff' : unifiedFrontColor}
+                      map={isSelected ? undefined : (verticalFrontTexture || undefined)}
+                      roughness={0.62}
+                      metalness={0.02}
+                      envMapIntensity={0.06}
+                    />
+                  )}
                 </mesh>
 
                 {/* Glass door frame edges */}
                 {isGlass && (
                   <>
                     <mesh position={[0, appliedH / 2 - 0.009, thickness / 4 + 0.001]}>
-                      <boxGeometry args={[appliedW - gap, 0.018, 0.002]} />
+                      <boxGeometry args={[appliedW, 0.018, 0.002]} />
                       <meshStandardMaterial color={color} roughness={0.3} />
                     </mesh>
                     <mesh position={[0, -appliedH / 2 + 0.009, thickness / 4 + 0.001]}>
-                      <boxGeometry args={[appliedW - gap, 0.018, 0.002]} />
+                      <boxGeometry args={[appliedW, 0.018, 0.002]} />
                       <meshStandardMaterial color={color} roughness={0.3} />
                     </mesh>
                     <mesh position={[-appliedW / 2 + 0.009, 0, thickness / 4 + 0.001]}>
-                      <boxGeometry args={[0.018, appliedH - gap, 0.002]} />
+                      <boxGeometry args={[0.018, appliedH, 0.002]} />
                       <meshStandardMaterial color={color} roughness={0.3} />
                     </mesh>
                     <mesh position={[appliedW / 2 - 0.009, 0, thickness / 4 + 0.001]}>
-                      <boxGeometry args={[0.018, appliedH - gap, 0.002]} />
+                      <boxGeometry args={[0.018, appliedH, 0.002]} />
                       <meshStandardMaterial color={color} roughness={0.3} />
                     </mesh>
                   </>
                 )}
 
-                {/* Door handle — vertical bar */}
-                <mesh position={[appliedW * 0.38, 0, thickness / 3]}>
-                  <cylinderGeometry args={[0.004, 0.004, 0.05, 8]} />
-                  <meshStandardMaterial color="#999" metalness={0.9} roughness={0.15} />
-                </mesh>
               </group>
             </AnimatedFront>
           );
@@ -422,13 +494,14 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
                     onClick?.(front.row, front.col);
                   }}
                 >
-                  <boxGeometry args={[appliedW - gap, appliedH - gap, thickness / 2]} />
-                  <meshStandardMaterial color={color} roughness={0.25} />
-                </mesh>
-                {/* Flap handle */}
-                <mesh position={[0, -appliedH * 0.35, thickness / 3]}>
-                  <boxGeometry args={[appliedW * 0.2, 0.005, 0.008]} />
-                  <meshStandardMaterial color="#999" metalness={0.9} roughness={0.15} />
+                  <boxGeometry args={[appliedW, appliedH, thickness / 2]} />
+                  <meshStandardMaterial
+                    color={color}
+                    map={isSelected ? undefined : (horizontalFrontTexture || undefined)}
+                    roughness={0.62}
+                    metalness={0.02}
+                    envMapIntensity={0.06}
+                  />
                 </mesh>
               </group>
             </AnimatedFront>
@@ -488,7 +561,7 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
       {config.baseType === 'plinta' && (
         <mesh position={[0, -h / 2 - 0.04, 0]} castShadow>
           <boxGeometry args={[w - 0.02, 0.08, d - 0.02]} />
-          <meshStandardMaterial color={bodyColor} roughness={0.4} />
+          <meshStandardMaterial color={bodyMatColor} map={horizontalBodyTexture || undefined} roughness={0.4} />
         </mesh>
       )}
 

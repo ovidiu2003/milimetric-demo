@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useConfiguratorStore, ConfiguratorStep } from '@/store/configuratorStore';
 import { furnitureCategories, fronts, bases, additionalOptions, getFrontsForCategory, getBasesForCategory } from '@/data/catalog';
-import { materials, materialTypes, getBodyMaterials, getFrontMaterials, getMaterialById } from '@/data/materials';
+import { materialTypes, getBodyMaterials, getFrontMaterials, getMaterialById } from '@/data/materials';
+import { useTextures } from '@/hooks/useTextures';
 import { formatPrice, getDeliveryEstimate } from '@/data/pricing';
 import { FurnitureCategory, FrontType, BaseType, MaterialType } from '@/types';
 import {
@@ -11,7 +12,8 @@ import {
   Grid3X3, Columns, Rows, PaintBucket, Footprints, Settings2,
   ShoppingCart, FileText, Truck, RotateCcw, Download
 } from 'lucide-react';
-import { exportPDF } from '@/utils/exportPDF';
+import { exportPDF, generatePDFBase64, getPDFFileName } from '@/utils/exportPDF';
+import OfferRequestModal from '@/components/configurator/OfferRequestModal';
 
 const stepLabels: Record<ConfiguratorStep, { title: string; icon: React.ReactNode }> = {
   category: { title: 'Tip Mobilier', icon: <Grid3X3 className="w-5 h-5" /> },
@@ -345,9 +347,12 @@ function MaterialStep() {
   const setBodyMaterial = useConfiguratorStore((s) => s.setBodyMaterial);
   const setFrontMaterial = useConfiguratorStore((s) => s.setFrontMaterial);
 
+  const [activeTab, setActiveTab] = React.useState<'body' | 'front'>('body');
+  // Loads textures from /public/textures/ and registers them in the material registry
+  const { loading: texturesLoading } = useTextures();
+
   const bodyMaterials = getBodyMaterials();
   const frontMaterials = getFrontMaterials();
-  const [activeTab, setActiveTab] = React.useState<'body' | 'front'>('body');
 
   const activeMaterials = activeTab === 'body' ? bodyMaterials : frontMaterials;
   const activeMaterialId = activeTab === 'body' ? config.bodyMaterialId : config.frontMaterialId;
@@ -387,6 +392,10 @@ function MaterialStep() {
       </div>
 
       {/* Materials list by type */}
+      {/* Materials list by type */}
+      {texturesLoading && (
+        <p className="text-xs text-brand-charcoal/40 animate-pulse">Se încarcă texturile...</p>
+      )}
       <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
         {grouped.map((group) => (
           <div key={group.id}>
@@ -400,6 +409,7 @@ function MaterialStep() {
                   <button
                     key={mat.id}
                     onClick={() => setMaterial(mat.id)}
+                    title={mat.id !== mat.name ? mat.id : undefined}
                     className={`relative p-2 rounded-lg border-2 transition-all group ${
                       isActive
                         ? 'border-brand-accent shadow-md'
@@ -408,9 +418,18 @@ function MaterialStep() {
                   >
                     <div
                       className={`material-swatch w-full h-10 rounded-md ${isActive ? 'active' : ''}`}
-                      style={{ backgroundColor: mat.color }}
+                      style={mat.textureUrl
+                        ? {
+                            backgroundImage: `url(${mat.textureUrl})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                          }
+                        : { backgroundColor: mat.color }}
                     />
                     <p className="text-[10px] font-medium mt-1 text-brand-charcoal/70 truncate">{mat.name}</p>
+                    {mat.id !== mat.name && (
+                      <p className="text-[8px] text-brand-charcoal/35 truncate leading-tight">{mat.id}</p>
+                    )}
                     {mat.priceMultiplier > 1.5 && (
                       <span className="absolute -top-1 -right-1 text-[8px] bg-brand-accent text-white px-1 rounded-full">
                         Premium
@@ -436,10 +455,24 @@ function MaterialStep() {
         return (
           <div className="p-3 bg-brand-warm rounded-lg">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-lg" style={{ backgroundColor: selected.color }} />
+              <div
+                className="w-10 h-10 rounded-lg"
+                style={selected.textureUrl
+                  ? {
+                      backgroundImage: `url(${selected.textureUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }
+                  : { backgroundColor: selected.color }}
+              />
               <div>
                 <p className="text-sm font-semibold">{selected.name}</p>
-                <p className="text-xs text-brand-charcoal/50">{selected.description}</p>
+                {selected.id !== selected.name && (
+                  <p className="text-[10px] text-brand-charcoal/50 font-mono break-all">{selected.id}</p>
+                )}
+                {selected.description && selected.description !== selected.id && (
+                  <p className="text-xs text-brand-charcoal/40">{selected.description}</p>
+                )}
               </div>
             </div>
           </div>
@@ -575,11 +608,42 @@ function OptionsStep() {
 function SummaryStep() {
   const config = useConfiguratorStore((s) => s.config);
   const price = useConfiguratorStore((s) => s.price);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const bodyMaterial = getMaterialById(config.bodyMaterialId);
   const frontMaterial = getMaterialById(config.frontMaterialId);
   const catInfo = furnitureCategories.find((c) => c.id === config.category);
   const delivery = getDeliveryEstimate(config);
+
+  async function handleOfferSubmit(data: {
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string;
+  }) {
+    setStatusMessage(null);
+
+    const pdfBase64 = generatePDFBase64(config, price);
+
+    const res = await fetch('/api/send-offer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...data,
+        configType: catInfo?.name || config.category,
+        pdfBase64,
+        pdfFilename: getPDFFileName(config),
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.error || 'Nu am putut trimite oferta. Incearca din nou.');
+    }
+
+    setStatusMessage('Cererea a fost trimisa cu succes. Revenim catre tine in cel mai scurt timp.');
+  }
 
   return (
     <div className="space-y-6">
@@ -688,7 +752,10 @@ function SummaryStep() {
 
       {/* Actions */}
       <div className="space-y-3">
-        <button className="btn-primary w-full text-center justify-center">
+        <button
+          onClick={() => setIsOfferModalOpen(true)}
+          className="btn-primary w-full text-center justify-center"
+        >
           <ShoppingCart className="w-5 h-5 mr-2" />
           Solicită Ofertă
         </button>
@@ -699,7 +766,17 @@ function SummaryStep() {
           <Download className="w-4 h-4 mr-2" />
           Exportă PDF — Desen Tehnic
         </button>
+        {statusMessage && (
+          <p className="text-xs text-brand-sage">{statusMessage}</p>
+        )}
       </div>
+
+      <OfferRequestModal
+        isOpen={isOfferModalOpen}
+        onClose={() => setIsOfferModalOpen(false)}
+        onSubmit={handleOfferSubmit}
+        title="Solicita oferta"
+      />
     </div>
   );
 }

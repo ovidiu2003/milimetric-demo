@@ -183,6 +183,7 @@ export interface LivingUnitConfig {
   // ── Corp vertical (tower = raft + dulap) ──
   raftWidth: number;         // cm — width of open shelving column
   dulapWidth: number;        // cm — width of closed cabinet
+  openShelfCount: number;    // number of adjustable shelves in the open vertical body
 
   // Overall dimensions
   totalWidth: number;        // cm — total width = max(comodaWidth, tower) — auto-calculated

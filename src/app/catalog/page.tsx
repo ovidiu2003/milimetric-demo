@@ -68,6 +68,10 @@ function CatalogContent() {
       return a.name.localeCompare(b.name);
     });
 
+  const availableCategories = furnitureCategories.filter((cat) =>
+    catalogItems.some((item) => item.category === cat.id)
+  );
+
   return (
     <div className="min-h-screen bg-brand-cream">
       {/* Header */}
@@ -111,7 +115,7 @@ function CatalogContent() {
                 >
                   Toate ({catalogItems.length})
                 </button>
-                {furnitureCategories.map((cat) => {
+                {availableCategories.map((cat) => {
                   const count = catalogItems.filter((i) => i.category === cat.id).length;
                   return (
                     <button

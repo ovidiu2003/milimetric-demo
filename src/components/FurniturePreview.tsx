@@ -2,14 +2,14 @@
 
 import React from 'react';
 import { CatalogItem } from '@/types';
-import { materials } from '@/data/materials';
+import { getMaterialById } from '@/data/materials';
 
 /**
  * Material color lookup with fallback.
  */
 function getMaterialColor(materialId?: string): string {
   if (!materialId) return '#c9a96e';
-  const mat = materials.find((m) => m.id === materialId);
+  const mat = getMaterialById(materialId);
   return mat?.color || '#c9a96e';
 }
 

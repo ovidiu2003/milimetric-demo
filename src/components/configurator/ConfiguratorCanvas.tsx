@@ -1,81 +1,250 @@
 'use client';
 
-import React, { Suspense, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Grid, PerspectiveCamera } from '@react-three/drei';
+import React, { Suspense, useMemo } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Environment, ContactShadows, PerspectiveCamera, Html, Line } from '@react-three/drei';
+import { EffectComposer, SSAO, SMAA } from '@react-three/postprocessing';
+import { BlendFunction } from 'postprocessing';
+import * as THREE from 'three';
 import FurnitureModel from './FurnitureModel';
 import { useConfiguratorStore } from '@/store/configuratorStore';
 import { RotateCw, ZoomIn, ZoomOut, Maximize2, Eye, EyeOff } from 'lucide-react';
 
-function Scene() {
-  const selectCompartment = useConfiguratorStore((s) => s.selectCompartment);
-  const config = useConfiguratorStore((s) => s.config);
+function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heightCm: number; depthCm: number }) {
+  const scale = 0.01;
+  const w = widthCm * scale;
+  const h = heightCm * scale;
+  const d = depthCm * scale;
+  const offset = 0.12;
+  const yGuide = 0.04;
+  const arrowLen = 0.02;
+  const arrowWing = 0.01;
+  const widthColor = '#c2410c';
+  const heightColor = '#166534';
+  const depthColor = '#1d4ed8';
 
-  // Center furniture vertically based on its height
-  const h = config.dimensions.height * 0.01;
-  const yOffset = h / 2;
+  const labelStyle: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.9)',
+    border: '1px solid rgba(31,41,55,0.2)',
+    borderRadius: '6px',
+    padding: '2px 6px',
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#111827',
+    whiteSpace: 'nowrap',
+  };
 
   return (
     <>
-      <PerspectiveCamera makeDefault position={[2, 1.5, 2.5]} fov={40} />
+      {/* Width axis */}
+      <Line points={[[-w / 2, yGuide, d / 2 + offset], [w / 2, yGuide, d / 2 + offset]]} color={widthColor} lineWidth={1} />
+      <Line points={[[-w / 2, yGuide, d / 2 + offset], [-w / 2 + arrowLen, yGuide, d / 2 + offset + arrowWing]]} color={widthColor} lineWidth={1} />
+      <Line points={[[-w / 2, yGuide, d / 2 + offset], [-w / 2 + arrowLen, yGuide, d / 2 + offset - arrowWing]]} color={widthColor} lineWidth={1} />
+      <Line points={[[w / 2, yGuide, d / 2 + offset], [w / 2 - arrowLen, yGuide, d / 2 + offset + arrowWing]]} color={widthColor} lineWidth={1} />
+      <Line points={[[w / 2, yGuide, d / 2 + offset], [w / 2 - arrowLen, yGuide, d / 2 + offset - arrowWing]]} color={widthColor} lineWidth={1} />
+      <Html position={[0, yGuide + 0.03, d / 2 + offset]} center sprite>
+        <div style={{ ...labelStyle, borderColor: 'rgba(194,65,12,0.35)' }}>L {widthCm} cm</div>
+      </Html>
+
+      {/* Height axis */}
+      <Line points={[[-w / 2 - offset, 0, d / 2 + offset], [-w / 2 - offset, h, d / 2 + offset]]} color={heightColor} lineWidth={1} />
+      <Line points={[[-w / 2 - offset, 0, d / 2 + offset], [-w / 2 - offset, arrowLen, d / 2 + offset + arrowWing]]} color={heightColor} lineWidth={1} />
+      <Line points={[[-w / 2 - offset, 0, d / 2 + offset], [-w / 2 - offset, arrowLen, d / 2 + offset - arrowWing]]} color={heightColor} lineWidth={1} />
+      <Line points={[[-w / 2 - offset, h, d / 2 + offset], [-w / 2 - offset, h - arrowLen, d / 2 + offset + arrowWing]]} color={heightColor} lineWidth={1} />
+      <Line points={[[-w / 2 - offset, h, d / 2 + offset], [-w / 2 - offset, h - arrowLen, d / 2 + offset - arrowWing]]} color={heightColor} lineWidth={1} />
+      <Html position={[-w / 2 - offset, h / 2, d / 2 + offset + 0.03]} center sprite>
+        <div style={{ ...labelStyle, borderColor: 'rgba(22,101,52,0.35)' }}>H {heightCm} cm</div>
+      </Html>
+
+      {/* Depth axis */}
+      <Line points={[[w / 2 + offset, yGuide, -d / 2], [w / 2 + offset, yGuide, d / 2]]} color={depthColor} lineWidth={1} />
+      <Line points={[[w / 2 + offset, yGuide, -d / 2], [w / 2 + offset + arrowWing, yGuide, -d / 2 + arrowLen]]} color={depthColor} lineWidth={1} />
+      <Line points={[[w / 2 + offset, yGuide, -d / 2], [w / 2 + offset - arrowWing, yGuide, -d / 2 + arrowLen]]} color={depthColor} lineWidth={1} />
+      <Line points={[[w / 2 + offset, yGuide, d / 2], [w / 2 + offset + arrowWing, yGuide, d / 2 - arrowLen]]} color={depthColor} lineWidth={1} />
+      <Line points={[[w / 2 + offset, yGuide, d / 2], [w / 2 + offset - arrowWing, yGuide, d / 2 - arrowLen]]} color={depthColor} lineWidth={1} />
+      <Html position={[w / 2 + offset + 0.03, yGuide + 0.02, 0]} center sprite>
+        <div style={{ ...labelStyle, borderColor: 'rgba(29,78,216,0.35)' }}>A {depthCm} cm</div>
+      </Html>
+    </>
+  );
+}
+
+function Scene() {
+  const selectCompartment = useConfiguratorStore((s) => s.selectCompartment);
+  const config = useConfiguratorStore((s) => s.config);
+  const floorTexture = useMemo(() => {
+    const texture = new THREE.TextureLoader().load('/textures/EGGER_H1367_ST40_Light Natural Casella Oak.jpg');
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(4, 4);
+    texture.anisotropy = 8;
+    return texture;
+  }, []);
+  const wallTexture = useMemo(() => {
+    const texture = new THREE.TextureLoader().load('/textures/EGGER_F187_ST9_Dark Grey Chicago Concrete.jpg');
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(2.2, 1.4);
+    texture.anisotropy = 8;
+    return texture;
+  }, []);
+
+  // Center furniture vertically based on its height
+  const h = config.dimensions.height * 0.01;
+  const d = config.dimensions.depth * 0.01;
+  const yOffset = h / 2;
+  const wallFrontZ = -0.52; // wall center -0.58 with thickness 0.12
+  const mountGap = 0.008; // 8 mm visual mounting gap
+  const furnitureZ = wallFrontZ + d / 2 + mountGap;
+
+  return (
+    <>
+      <PerspectiveCamera makeDefault position={[2.1, 1.6, 2.8]} fov={36} />
 
       {/* Lighting */}
-      <ambientLight intensity={0.5} />
+      {/* Low ambient for contrast */}
+      <ambientLight intensity={0.08} color="#ffffff" />
+      <hemisphereLight intensity={0.09} color="#ffffff" groundColor="#c4c9cf" />
+      {/* Main key light with tight shadow frustum */}
       <directionalLight
-        position={[5, 8, 5]}
-        intensity={1.2}
+        position={[4, 6, 5]}
+        intensity={0.78}
+        castShadow
+        shadow-mapSize={[4096, 4096]}
+        shadow-camera-far={20}
+        shadow-camera-left={-3}
+        shadow-camera-right={3}
+        shadow-camera-top={3}
+        shadow-camera-bottom={-3}
+        shadow-bias={-0.00008}
+        shadow-normalBias={0.015}
+      />
+      {/* Counter fill */}
+      <directionalLight position={[-5, 3, 3]} intensity={0.08} color="#ffffff" />
+      {/* Overhead spot — casts crisp shelf-underside shadows */}
+      <spotLight
+        position={[0, 4.2, 1.2]}
+        angle={0.52}
+        penumbra={0.6}
+        intensity={0.62}
+        distance={9}
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-far={50}
-        shadow-camera-left={-5}
-        shadow-camera-right={5}
-        shadow-camera-top={5}
-        shadow-camera-bottom={-5}
+        shadow-bias={-0.0002}
+        shadow-normalBias={0.01}
+        color="#ffffff"
       />
-      <directionalLight position={[-3, 4, -3]} intensity={0.4} />
-      <pointLight position={[0, 3, 2]} intensity={0.3} />
+      {/* Front accent — reveals compartment depth and panel edges */}
+      <spotLight
+        position={[0.8, 1.8, 3.0]}
+        angle={0.44}
+        penumbra={0.55}
+        intensity={0.36}
+        distance={7}
+        castShadow={false}
+        color="#ffffff"
+      />
+      {/* Rim light from back-left */}
+      <spotLight
+        position={[-2.5, 3.0, -2.5]}
+        angle={0.3}
+        penumbra={0.8}
+        intensity={0.2}
+        distance={8}
+        castShadow={false}
+        color="#ffffff"
+      />
+      {/* Back fill — subtle rear rim on body */}
+      <directionalLight position={[0, 4, -6]} intensity={0.1} />
+      {/* Room ceiling/fill lights for interior realism */}
+      <spotLight
+        position={[0, 3.8, -0.2]}
+        angle={0.95}
+        penumbra={0.7}
+        intensity={0.2}
+        distance={12}
+        castShadow={false}
+        color="#f5f7fa"
+      />
+      <pointLight position={[-2.2, 1.4, -0.4]} intensity={0.12} distance={6} color="#eef2f7" />
 
       {/* Environment */}
-      <Environment preset="apartment" />
+      <Environment preset="studio" />
+
+      {/* Room context (wall + floor) for realistic placement preview */}
+      <mesh position={[0, 1.5, -0.58]} receiveShadow>
+        <boxGeometry args={[8, 4, 0.12]} />
+        <meshStandardMaterial color="#d5d7db" map={wallTexture} roughness={0.97} metalness={0.0} />
+      </mesh>
+      <mesh position={[0, -0.02, 0]} receiveShadow>
+        <boxGeometry args={[8, 0.04, 8]} />
+        <meshStandardMaterial
+          color="#c8bfae"
+          map={floorTexture}
+          roughness={0.96}
+          metalness={0.0}
+          envMapIntensity={0.08}
+        />
+      </mesh>
 
       {/* Furniture */}
-      <group position={[0, yOffset, 0]}>
+      <group position={[0, yOffset, furnitureZ]}>
         <FurnitureModel onClick={(row: number, col: number) => selectCompartment(row, col)} />
+        <DimensionGuides
+          widthCm={config.dimensions.width}
+          heightCm={config.dimensions.height}
+          depthCm={config.dimensions.depth}
+        />
       </group>
 
       {/* Floor */}
       <ContactShadows
-        position={[0, 0, 0]}
-        opacity={0.4}
+        position={[0, 0.001, 0]}
+        opacity={0.5}
         scale={10}
-        blur={2}
-        far={4}
+        blur={1.5}
+        far={5}
+        color="#2a2018"
       />
-      <Grid
-        args={[10, 10]}
-        position={[0, -0.001, 0]}
-        cellSize={0.1}
-        cellThickness={0.5}
-        cellColor="#d0d0d0"
-        sectionSize={1}
-        sectionThickness={1}
-        sectionColor="#a0a0a0"
-        fadeDistance={8}
-        fadeStrength={1}
-        infiniteGrid
-      />
-
       {/* Controls */}
       <OrbitControls
         enablePan={true}
         enableZoom={true}
         enableRotate={true}
-        minPolarAngle={Math.PI / 6}
-        maxPolarAngle={Math.PI / 2.1}
-        minDistance={1}
-        maxDistance={8}
-        target={[0, yOffset, 0]}
+        enableDamping
+        dampingFactor={0.08}
+        rotateSpeed={0.7}
+        zoomSpeed={0.9}
+        minPolarAngle={Math.PI / 5.5}
+        maxPolarAngle={Math.PI / 1.95}
+        minAzimuthAngle={-Math.PI / 1.8}
+        maxAzimuthAngle={Math.PI / 1.8}
+        minDistance={1.2}
+        maxDistance={7.5}
+        target={[0, yOffset, furnitureZ]}
+        panSpeed={0.7}
+        mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}
       />
+
+      {/* Post-processing: edge & corner ambient occlusion + AA */}
+      <EffectComposer multisampling={0}>
+        <SSAO
+          blendFunction={BlendFunction.MULTIPLY}
+          samples={32}
+          radius={0.03}
+          intensity={7}
+          luminanceInfluence={0.88}
+          bias={0.03}
+          resolutionScale={0.75}
+          worldDistanceThreshold={1}
+          worldDistanceFalloff={0.1}
+          worldProximityThreshold={0.0}
+          worldProximityFalloff={0.0}
+        />
+        <SMAA />
+      </EffectComposer>
     </>
   );
 }
@@ -137,7 +306,18 @@ export default function ConfiguratorCanvas() {
 
       {/* 3D Canvas */}
       <Suspense fallback={<LoadingFallback />}>
-        <Canvas shadows className="configurator-canvas">
+        <Canvas
+          shadows
+          dpr={[1, 2]}
+          gl={{ antialias: true }}
+          onCreated={({ gl }) => {
+            gl.toneMapping = THREE.NoToneMapping;
+            gl.toneMappingExposure = 0.74;
+            gl.shadowMap.type = THREE.PCFSoftShadowMap;
+            gl.outputColorSpace = THREE.SRGBColorSpace;
+          }}
+          className="configurator-canvas"
+        >
           <Scene />
         </Canvas>
       </Suspense>

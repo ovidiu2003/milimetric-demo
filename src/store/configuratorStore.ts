@@ -98,8 +98,8 @@ const defaultCompartments: CompartmentConfig = {
 const defaultConfig: FurnitureConfig = {
   category: 'biblioteci',
   dimensions: { width: 120, height: 180, depth: 30 },
-  bodyMaterialId: 'pal-alb',
-  frontMaterialId: 'pal-alb',
+  bodyMaterialId: 'custom-texture',
+  frontMaterialId: 'custom-texture',
   compartments: { ...defaultCompartments },
   fronts: [],
   baseType: 'none',

@@ -17,6 +17,7 @@ export const LIVING_UNIT_LIMITS = {
   // Corp vertical
   raftWidth:        { min: 10, max: 40, step: 1 },
   dulapWidth:       { min: 30, max: 90, step: 1 },
+  openShelfCount:   { min: 0, max: 12, step: 1 },
   // General
   totalHeight:      { min: 200, max: 300, step: 5 },
   depth:            { min: 30, max: 55, step: 1 },
@@ -30,12 +31,13 @@ const defaultConfig: LivingUnitConfig = {
   comodaColumns: 6,
   raftWidth: 20,
   dulapWidth: 60,
+  openShelfCount: 4,
   totalWidth: 300,   // auto-calculated
   totalHeight: 260,
   depth: 40,
   mirrored: false,
-  bodyMaterialId: 'stejar-natural',
-  frontMaterialId: 'mdf-alb-mat',
+  bodyMaterialId: 'custom-texture',
+  frontMaterialId: 'custom-texture',
 };
 
 /** Recalculates totalWidth from comoda and tower widths */
@@ -60,7 +62,7 @@ export function calculateLivingUnitPrice(config: LivingUnitConfig) {
   const towerCost = (config.raftWidth + config.dulapWidth) * towerHeight * 0.07 * bodyMul;
 
   // Raft shelves cost
-  const numShelves = Math.max(2, Math.min(12, Math.round(towerHeight / config.raftWidth)));
+  const numShelves = config.openShelfCount;
   const shelvesCost = numShelves * config.raftWidth * config.depth * 0.008 * bodyMul;
 
   // Dulap front (door) cost
@@ -114,6 +116,7 @@ interface LivingUnitState {
   // Parameter setters — Corp vertical
   setRaftWidth: (v: number) => void;
   setDulapWidth: (v: number) => void;
+  setOpenShelfCount: (v: number) => void;
   setTotalHeight: (v: number) => void;
   setDepth: (v: number) => void;
   toggleMirror: () => void;
@@ -182,6 +185,13 @@ export const useLivingUnitStore = create<LivingUnitState>((set, get) => ({
     const updated = { ...prev, dulapWidth: val };
     updated.totalWidth = recalcTotalWidth(updated);
     set({ config: updated, price: calculateLivingUnitPrice(updated) });
+  },
+
+  setOpenShelfCount: (v) => {
+    const prev = get().config;
+    const val = clamp(v, LIVING_UNIT_LIMITS.openShelfCount.min, LIVING_UNIT_LIMITS.openShelfCount.max);
+    const config = { ...prev, openShelfCount: val };
+    set({ config, price: calculateLivingUnitPrice(config) });
   },
 
   setTotalHeight: (v) => {

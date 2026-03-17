@@ -5,11 +5,8 @@ import { Phone, Mail, MapPin, Facebook, Instagram, Linkedin, ArrowUp } from 'luc
 
 const navLinks = [
   { name: 'Acasă', href: '/' },
-  { name: 'Mobilier la comandă', href: '/configurator' },
-  { name: 'Jurnal', href: '/jurnal' },
-  { name: 'Galerie', href: '/galerie' },
   { name: 'Despre noi', href: '/despre-noi' },
-  { name: 'Contact', href: '/contact' },
+  { name: 'Catalog', href: '/catalog' },
 ];
 
 const legalLinks = [

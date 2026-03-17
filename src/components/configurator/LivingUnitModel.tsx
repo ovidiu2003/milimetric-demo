@@ -1,9 +1,126 @@
 'use client';
 
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useLivingUnitStore } from '@/store/livingUnitStore';
 import { getMaterialById } from '@/data/materials';
+
+function HoverAnimatedFront({
+  children,
+  mode,
+  panelWidth,
+  hingeSide = -1,
+  hingePosition,
+}: {
+  children: React.ReactNode;
+  mode: 'drawer' | 'door';
+  panelWidth: number;
+  hingeSide?: -1 | 1;
+  /** World-space position of the hinge axis (door mode only). */
+  hingePosition?: [number, number, number];
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const animatedRef = useRef<THREE.Group>(null);
+  const contentRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
+  const progressRef = useRef(0);
+
+  useFrame((_, delta) => {
+    const animated = animatedRef.current;
+    if (!animated) return;
+
+    const target = hovered ? 1 : 0;
+    const speed = 5;
+    progressRef.current += (target - progressRef.current) * speed * delta;
+    const p = Math.max(0, Math.min(1, progressRef.current));
+
+    animated.position.set(0, 0, 0);
+    animated.rotation.set(0, 0, 0);
+
+    if (mode === 'drawer') {
+      // Drawer front slides outward.
+      const content = contentRef.current;
+      if (content) content.position.set(0, 0, 0);
+      animated.position.z = p * panelWidth * 0.35;
+      return;
+    }
+
+    // Door: the outer group (groupRef) sits exactly at the hinge axis.
+    // Rotating animatedRef around Y pivots the door around that edge — like a real hinge.
+    // hingeSide = -1 → left hinge, door swings CCW (rotation.y negative → +Z)
+    // hingeSide =  1 → right hinge, door swings CW (rotation.y positive → +Z)
+    const angle = p * (Math.PI / 2);
+    animated.rotation.y = hingeSide * angle;
+  });
+
+  // ── Door mode: outer group is placed AT the hinge edge in world space. ──────
+  if (mode === 'door') {
+    return (
+      <group
+        ref={groupRef}
+        position={hingePosition}
+        onPointerEnter={(e) => {
+          e.stopPropagation();
+          setHovered(true);
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerLeave={() => {
+          setHovered(false);
+          document.body.style.cursor = 'auto';
+        }}
+      >
+        <group ref={animatedRef}>
+          {/* Shift door so its hinge edge aligns with this group's origin */}
+          <group position={[-hingeSide * (panelWidth / 2), 0, 0]}>
+            {children}
+          </group>
+        </group>
+      </group>
+    );
+  }
+
+  // ── Drawer mode (unchanged) ───────────────────────────────────────────────
+  return (
+    <group
+      ref={groupRef}
+      onPointerEnter={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerLeave={() => {
+        setHovered(false);
+        document.body.style.cursor = 'auto';
+      }}
+    >
+      <group ref={animatedRef}>
+        <group ref={contentRef}>{children}</group>
+      </group>
+    </group>
+  );
+}
+
+function cloneTextureWithRotation(
+  source: THREE.Texture | null,
+  rotation: number
+): THREE.Texture | null {
+  if (!source) return null;
+
+  const texture = source.clone();
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.center.set(0.5, 0.5);
+  texture.rotation = rotation;
+  texture.repeat.set(3, 3);
+  texture.needsUpdate = true;
+
+  return texture;
+}
 
 /**
  * 3D model of the suspended living room unit.
@@ -31,11 +148,56 @@ export default function LivingUnitModel() {
 
   const bodyColor = bodyMaterial?.color || '#c9a96e';
   const frontColor = frontMaterial?.color || '#f5f5f5';
+  const bodyTexture = useMemo(() => {
+    if (!bodyMaterial?.textureUrl) return null;
+    const texture = new THREE.TextureLoader().load(bodyMaterial.textureUrl);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 8;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.repeat.set(3, 3);
+    return texture;
+  }, [bodyMaterial?.textureUrl]);
+  const frontTexture = useMemo(() => {
+    if (!frontMaterial?.textureUrl) return null;
+    const texture = new THREE.TextureLoader().load(frontMaterial.textureUrl);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 8;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.repeat.set(3, 3);
+    return texture;
+  }, [frontMaterial?.textureUrl]);
+  const horizontalBodyTexture = useMemo(
+    () => cloneTextureWithRotation(bodyTexture, Math.PI / 2),
+    [bodyTexture]
+  );
+  const verticalBodyTexture = useMemo(
+    () => cloneTextureWithRotation(bodyTexture, 0),
+    [bodyTexture]
+  );
+  const unifiedFrontTexture = frontTexture || bodyTexture;
+  const horizontalFrontTexture = useMemo(
+    () => cloneTextureWithRotation(unifiedFrontTexture, Math.PI / 2),
+    [unifiedFrontTexture]
+  );
+  const verticalFrontTexture = useMemo(
+    () => cloneTextureWithRotation(unifiedFrontTexture, 0),
+    [unifiedFrontTexture]
+  );
+  const unifiedBodyColor = bodyTexture ? '#ffffff' : bodyColor;
+  const unifiedFrontColor = frontTexture ? '#ffffff' : unifiedBodyColor;
 
   // Scale: cm → Three.js meters
   const S = 0.01;
   const T = 1.8 * S; // panel thickness (1.8 cm)
   const FRONT_GAP = 0.3 * S; // front panel overhang
+  const FRONT_JOINT_GAP = 0.3 * S; // small reveal between adjacent fronts
+  const TOP_FRONT_OVERHANG = 1.0 * S; // top panel extends forward to cover front edge
 
   const {
     suspensionHeight, comodaHeight, comodaWidth, comodaColumns,
@@ -51,7 +213,6 @@ export default function LivingUnitModel() {
   const CH = comodaHeight * S;
   const RW = raftWidth * S;
   const DW = dulapWidth * S;
-  const TH = H - SH - CH; // tower height
   const TW = RW + DW;     // tower width
 
   // X center = 0; items are positioned relative to their own widths
@@ -63,7 +224,9 @@ export default function LivingUnitModel() {
   const comodaBotY = SH;
   const comodaMidY = SH + CH / 2;
   const comodaTopY = SH + CH;
-  const towerMidY  = comodaTopY + TH / 2;
+  const towerBaseY = comodaTopY + T; // tower sits on top of the countertop
+  const TH = H - SH - CH - T;       // tower height (above the blat)
+  const towerMidY  = towerBaseY + TH / 2;
 
   // Tower X positions — aligned at the right edge of comoda (or left if mirrored)
   let towerX1: number, towerX2: number;
@@ -87,26 +250,31 @@ export default function LivingUnitModel() {
   const raftMidX  = (rX1 + rX2) / 2;
   const dulapMidX = (dX1 + dX2) / 2;
   const towerMidX = (towerX1 + towerX2) / 2;
-  const towerW    = TW;
-  const dividerX  = mirrored ? dX2 : rX2; // boundary between raft & dulap
+  const raftInnerSideX = mirrored ? rX1 + T / 2 : rX2 - T / 2;
+  const dulapInnerSideX = mirrored ? dX2 - T / 2 : dX1 + T / 2;
+  const openRaftLeftInnerX = rX1 + T;
+  const openRaftRightInnerX = rX2 - T;
+  const openRaftMidX = (openRaftLeftInnerX + openRaftRightInnerX) / 2;
+  const openRaftShelfW = openRaftRightInnerX - openRaftLeftInnerX;
 
   // ──── Comoda compartments ────
   const numCompartments = comodaColumns;
-  const innerW     = CW - 2 * T;
-  const compW      = (innerW - (numCompartments - 1) * T) / numCompartments;
-  const frontH     = CH - 2 * T - 0.004;
-  const frontW     = compW - 0.004;
+  const moduleW    = CW / numCompartments;
+  const moduleInnerW = moduleW - 2 * T;
+  // Keep the top panel visible above fronts: fronts sit below the top plate.
+  const frontH     = CH;
+  const frontW     = moduleW - FRONT_JOINT_GAP;
+  const comodaBackH = CH - 2 * T;
+  const raftTopW = RW;
+  const dulapTopW = DW;
+  const raftBackW = RW - 2 * T;
+  const dulapBackW = DW - 2 * T;
+  const towerBackH = TH - T;
 
-  // ──── Raft cubes ────
-  const numCubes = useMemo(
-    () => Math.max(2, Math.min(12, Math.round((totalHeight - suspensionHeight - comodaHeight) / raftWidth))),
-    [totalHeight, suspensionHeight, comodaHeight, raftWidth],
-  );
-  const raftInner = RW - 2 * T;
+  // ──── Raft cubes / shelves ────
+  const numShelves = Math.max(0, config.openShelfCount);
+  const numCubes = numShelves + 1;
   const cubeH     = (TH - (numCubes + 1) * T) / numCubes;
-
-  // Handle position for dulap door
-  const handleSide = mirrored ? 1 : -1; // handle near raft side
 
   return (
     <group ref={groupRef}>
@@ -114,63 +282,58 @@ export default function LivingUnitModel() {
           COMODA (full-width suspended cabinet)
          ══════════════════════════════════════════════════ */}
 
-      {/* Bottom panel */}
-      <mesh position={[0, comodaBotY + T / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[CW, T, D]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.35} />
+      {/* Common countertop above all horizontal modules */}
+      <mesh position={[0, comodaTopY + T / 2, TOP_FRONT_OVERHANG / 2]} castShadow receiveShadow>
+        <boxGeometry args={[CW, T, D + TOP_FRONT_OVERHANG]} />
+        <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
       </mesh>
 
-      {/* Top panel */}
-      <mesh position={[0, comodaTopY - T / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[CW, T, D]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.35} />
-      </mesh>
-
-      {/* Left side */}
-      <mesh position={[comodaXL + T / 2, comodaMidY, 0]} castShadow receiveShadow>
-        <boxGeometry args={[T, CH, D]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.35} />
-      </mesh>
-
-      {/* Right side */}
-      <mesh position={[comodaXR - T / 2, comodaMidY, 0]} castShadow receiveShadow>
-        <boxGeometry args={[T, CH, D]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.35} />
-      </mesh>
-
-      {/* Back panel */}
-      <mesh position={[0, comodaMidY, -D / 2 + T / 4]} castShadow receiveShadow>
-        <boxGeometry args={[CW, CH, T / 2]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.5} />
-      </mesh>
-
-      {/* Internal dividers */}
-      {Array.from({ length: numCompartments - 1 }, (_, i) => {
-        const x = comodaXL + T + (i + 1) * compW + i * T + T / 2;
+      {/* Segmented comoda modules (each with individual side panels) */}
+      {Array.from({ length: numCompartments }, (_, i) => {
+        const mx = comodaXL + moduleW * i + moduleW / 2;
         return (
-          <mesh key={`cdiv-${i}`} position={[x, comodaMidY, 0]} castShadow>
-            <boxGeometry args={[T, CH - 2 * T, D - T / 2]} />
-            <meshStandardMaterial color={bodyColor} roughness={0.35} />
-          </mesh>
+          <group key={`cm-${i}`}>
+            <mesh position={[mx, comodaBotY + T / 2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[moduleInnerW, T, D]} />
+              <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+            </mesh>
+            <mesh position={[mx, comodaTopY - T / 2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[moduleInnerW, T, D]} />
+              <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+            </mesh>
+            <mesh position={[mx - moduleW / 2 + T / 2, comodaMidY, 0]} castShadow receiveShadow>
+              <boxGeometry args={[T, CH, D]} />
+              <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+            </mesh>
+            <mesh position={[mx + moduleW / 2 - T / 2, comodaMidY, 0]} castShadow receiveShadow>
+              <boxGeometry args={[T, CH, D]} />
+              <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+            </mesh>
+            <mesh position={[mx, comodaMidY, -D / 2 + T / 4]} castShadow receiveShadow>
+              <boxGeometry args={[moduleInnerW, comodaBackH, T / 2]} />
+              <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+            </mesh>
+          </group>
         );
       })}
 
       {/* Drawer fronts */}
       {Array.from({ length: numCompartments }, (_, i) => {
-        const x = comodaXL + T + i * (compW + T) + compW / 2;
+        const x = comodaXL + moduleW * i + moduleW / 2;
         return (
-          <group key={`cf-${i}`} position={[x, comodaMidY, D / 2 + FRONT_GAP]}>
-            {/* Panel */}
-            <mesh castShadow>
-              <boxGeometry args={[frontW, frontH, T / 2]} />
-              <meshStandardMaterial color={bodyColor} roughness={0.25} />
-            </mesh>
-            {/* Handle bar */}
-            <mesh position={[0, 0, T / 3]}>
-              <boxGeometry args={[frontW * 0.28, 0.005, 0.009]} />
-              <meshStandardMaterial color="#999" metalness={0.9} roughness={0.15} />
-            </mesh>
-          </group>
+          <HoverAnimatedFront key={`cf-${i}`} mode="drawer" panelWidth={frontW}>
+            <group position={[x, comodaMidY, D / 2 + FRONT_GAP]}>
+              {/* Panel */}
+              <mesh castShadow>
+                <boxGeometry args={[frontW, frontH, T / 2]} />
+                <meshStandardMaterial
+                  color={unifiedFrontColor}
+                  map={horizontalFrontTexture || undefined}
+                  roughness={0.62} metalness={0.02} envMapIntensity={0.06}
+                />
+              </mesh>
+            </group>
+          </HoverAnimatedFront>
         );
       })}
 
@@ -181,87 +344,116 @@ export default function LivingUnitModel() {
       {/* Left tower panel */}
       <mesh position={[towerX1 + T / 2, towerMidY, 0]} castShadow receiveShadow>
         <boxGeometry args={[T, TH, D]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.35} />
+        <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
       </mesh>
 
       {/* Right tower panel */}
       <mesh position={[towerX2 - T / 2, towerMidY, 0]} castShadow receiveShadow>
         <boxGeometry args={[T, TH, D]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.35} />
+        <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
       </mesh>
 
-      {/* Top tower panel */}
-      <mesh position={[towerMidX, H - T / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[towerW, T, D]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.35} />
+      {/* Top panel - open shelf module */}
+      <mesh position={[raftMidX, H - T / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[raftTopW, T, D]} />
+        <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
       </mesh>
 
-      {/* Tower back panel */}
-      <mesh position={[towerMidX, towerMidY, -D / 2 + T / 4]} castShadow receiveShadow>
-        <boxGeometry args={[towerW, TH, T / 2]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.5} />
+      {/* Bottom panel - open shelf module */}
+      <mesh position={[raftMidX, towerBaseY + T / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[raftBackW, T, D]} />
+        <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
       </mesh>
 
-      {/* ══════════════════════════════════════════════════
-          TOWER — raft / dulap vertical divider
-         ══════════════════════════════════════════════════ */}
-      <mesh position={[dividerX, towerMidY, 0]} castShadow>
-        <boxGeometry args={[T, TH - 2 * T, D - T / 2]} />
-        <meshStandardMaterial color={bodyColor} roughness={0.35} />
+      {/* Top panel - closed cabinet module */}
+      <mesh position={[dulapMidX, H - T / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[dulapTopW, T, D]} />
+        <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+      </mesh>
+
+      {/* Bottom panel - closed cabinet module */}
+      <mesh position={[dulapMidX, towerBaseY + T / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[dulapBackW, T, D]} />
+        <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+      </mesh>
+
+      {/* Back panel - open shelf module */}
+      <mesh position={[raftMidX, towerMidY - T / 2, -D / 2 + T / 4]} castShadow receiveShadow>
+        <boxGeometry args={[raftBackW, towerBackH, T / 2]} />
+        <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+      </mesh>
+
+      {/* Back panel - closed cabinet module */}
+      <mesh position={[dulapMidX, towerMidY - T / 2, -D / 2 + T / 4]} castShadow receiveShadow>
+        <boxGeometry args={[dulapBackW, towerBackH, T / 2]} />
+        <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+      </mesh>
+
+      {/* Inner side - open shelf module */}
+      <mesh position={[raftInnerSideX, towerMidY - T / 2, 0]} castShadow>
+        <boxGeometry args={[T, TH - T, D - T / 2]} />
+        <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+      </mesh>
+
+      {/* Inner side - closed cabinet module */}
+      <mesh position={[dulapInnerSideX, towerMidY - T / 2, 0]} castShadow>
+        <boxGeometry args={[T, TH - T, D - T / 2]} />
+        <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
       </mesh>
 
       {/* ══════════════════════════════════════════════════
           RAFT DESCHIS — horizontal shelves (open cubes)
          ══════════════════════════════════════════════════ */}
-      {Array.from({ length: numCubes - 1 }, (_, i) => {
-        const y = comodaTopY + T + (i + 1) * (cubeH + T) - T / 2;
+      {Array.from({ length: numShelves }, (_, i) => {
+        const y = towerBaseY + T + (i + 1) * (cubeH + T) - T / 2;
         return (
-          <mesh key={`rs-${i}`} position={[raftMidX, y, 0]} castShadow>
-            <boxGeometry args={[raftInner, T, D - T]} />
-            <meshStandardMaterial color={bodyColor} roughness={0.35} />
+          <mesh key={`rs-${i}`} position={[openRaftMidX, y, 0]} castShadow>
+            <boxGeometry args={[openRaftShelfW, T, D - T]} />
+            <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
           </mesh>
         );
       })}
 
       {/* ══════════════════════════════════════════════════
-          DULAP — front door
-         ══════════════════════════════════════════════════ */}
-      <group position={[dulapMidX, towerMidY, D / 2 + FRONT_GAP]}>
-        {/* Door panel */}
+          DULAP — front door (hinged)
+         ══════════════════════════════════════════════════
+         hingePosition places the outer group at the physical hinge edge
+         so that Y-axis rotation produces a realistic balama effect.
+         non-mirrored: hinge on left outer edge (dX1)
+         mirrored:     hinge on right outer edge (dX2)           */}
+      <HoverAnimatedFront
+        mode="door"
+        panelWidth={DW}
+        hingeSide={mirrored ? 1 : -1}
+        hingePosition={[mirrored ? dX2 : dX1, towerMidY, D / 2 + FRONT_GAP]}
+      >
+        {/* Door panel — covers full tower height including bottom */}
         <mesh castShadow>
-          <boxGeometry args={[DW - 2 * T - 0.004, TH - 2 * T - 0.004, T / 2]} />
-          <meshStandardMaterial color={frontColor} roughness={0.2} />
+          <boxGeometry args={[DW, TH, T / 2]} />
+          <meshStandardMaterial
+            color={unifiedFrontColor}
+            map={verticalFrontTexture || undefined}
+            roughness={0.62} metalness={0.02} envMapIntensity={0.06}
+          />
         </mesh>
-        {/* Vertical door handle — positioned near the raft side */}
-        <mesh position={[handleSide * (DW / 2 - T - 0.04), 0, T / 3]}>
-          <cylinderGeometry args={[0.004, 0.004, 0.08, 8]} />
-          <meshStandardMaterial color="#999" metalness={0.9} roughness={0.15} />
-        </mesh>
-      </group>
+      </HoverAnimatedFront>
 
       {/* ══════════════════════════════════════════════════
           WALL MOUNT BRACKETS (visual indicators)
          ══════════════════════════════════════════════════ */}
       {[comodaXL + CW * 0.15, 0, comodaXR - CW * 0.15].map((x, i) => (
-        <mesh key={`wb-${i}`} position={[x, comodaMidY, -D / 2 - 0.01]}>
+        <mesh key={`wb-${i}`} position={[x, comodaMidY, -D / 2 - 0.01]} castShadow>
           <boxGeometry args={[0.06, 0.02, 0.02]} />
           <meshStandardMaterial color="#777" metalness={0.8} roughness={0.2} />
         </mesh>
       ))}
 
       {/* Tower top bracket */}
-      <mesh position={[towerMidX, towerMidY + TH * 0.3, -D / 2 - 0.01]}>
+      <mesh position={[towerMidX, towerMidY + TH * 0.3, -D / 2 - 0.01]} castShadow>
         <boxGeometry args={[0.06, 0.02, 0.02]} />
         <meshStandardMaterial color="#777" metalness={0.8} roughness={0.2} />
       </mesh>
 
-      {/* ══════════════════════════════════════════════════
-          FLOOR REFERENCE PLANE (subtle)
-         ══════════════════════════════════════════════════ */}
-      <mesh position={[0, -0.001, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[Math.max(CW, TW) + 0.5, D + 0.5]} />
-        <meshStandardMaterial color="#e8e4de" transparent opacity={0.3} />
-      </mesh>
     </group>
   );
 }

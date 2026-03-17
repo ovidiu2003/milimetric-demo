@@ -7,7 +7,10 @@ import {
   Ruler, PaintBucket, FileText, Truck,
 } from 'lucide-react';
 import { useLivingUnitStore, LIVING_UNIT_LIMITS, LivingUnitStep } from '@/store/livingUnitStore';
-import { materials, materialTypes, getBodyMaterials, getFrontMaterials, getMaterialById } from '@/data/materials';
+import { materialTypes, getBodyMaterials, getFrontMaterials, getMaterialById } from '@/data/materials';
+import { useTextures } from '@/hooks/useTextures';
+import OfferRequestModal from '@/components/configurator/OfferRequestModal';
+import { exportLivingUnitPDF, generateLivingUnitPDFBase64, getLivingUnitPDFFileName } from '@/utils/exportLivingUnitPDF';
 
 const stepMeta: Record<LivingUnitStep, { title: string; icon: React.ReactNode }> = {
   parameters: { title: 'Parametri', icon: <Ruler className="w-5 h-5" /> },
@@ -81,6 +84,7 @@ function ParametersStep() {
   const {
     setSuspensionHeight, setComodaHeight, setComodaWidth, setComodaColumns,
     setRaftWidth, setDulapWidth,
+    setOpenShelfCount,
     setTotalHeight, setDepth,
     toggleMirror,
   } = useLivingUnitStore();
@@ -170,6 +174,12 @@ function ParametersStep() {
             onChange={setDulapWidth}
           />
           <ParamSlider
+            label="Număr polițe corp deschis"
+            value={c.openShelfCount}
+            {...LIVING_UNIT_LIMITS.openShelfCount} unit="buc"
+            onChange={setOpenShelfCount}
+          />
+          <ParamSlider
             label="Înălțime totală"
             value={c.totalHeight}
             {...LIVING_UNIT_LIMITS.totalHeight} unit="cm"
@@ -254,6 +264,9 @@ function MaterialsStep() {
 
   const [activeTab, setActiveTab] = useState<'body' | 'front'>('body');
 
+  // Loads textures from /public/textures/ and registers them in the material registry
+  const { loading: texturesLoading } = useTextures();
+
   const bodyMaterials = getBodyMaterials();
   const frontMaterials = getFrontMaterials();
 
@@ -297,6 +310,9 @@ function MaterialsStep() {
       </div>
 
       {/* Materials list by type */}
+      {texturesLoading && (
+        <p className="text-xs text-brand-charcoal/40 animate-pulse">Se încarcă texturile...</p>
+      )}
       <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
         {grouped.map((group) => (
           <div key={group.id}>
@@ -310,6 +326,7 @@ function MaterialsStep() {
                   <button
                     key={mat.id}
                     onClick={() => setMaterial(mat.id)}
+                    title={mat.id !== mat.name ? mat.id : undefined}
                     className={`relative p-2 rounded-lg border-2 transition-all group ${
                       isActive
                         ? 'border-brand-accent shadow-md'
@@ -318,9 +335,18 @@ function MaterialsStep() {
                   >
                     <div
                       className={`material-swatch w-full h-10 rounded-md ${isActive ? 'active' : ''}`}
-                      style={{ backgroundColor: mat.color }}
+                      style={mat.textureUrl
+                        ? {
+                            backgroundImage: `url(${mat.textureUrl})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                          }
+                        : { backgroundColor: mat.color }}
                     />
                     <p className="text-[10px] font-medium mt-1 text-brand-charcoal/70 truncate">{mat.name}</p>
+                    {mat.id !== mat.name && (
+                      <p className="text-[8px] text-brand-charcoal/35 truncate leading-tight">{mat.id}</p>
+                    )}
                     {mat.priceMultiplier > 1.5 && (
                       <span className="absolute -top-1 -right-1 text-[8px] bg-brand-accent text-white px-1 rounded-full">
                         Premium
@@ -346,10 +372,24 @@ function MaterialsStep() {
         return (
           <div className="p-3 bg-brand-warm rounded-lg">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-lg" style={{ backgroundColor: selected.color }} />
+              <div
+                className="w-10 h-10 rounded-lg"
+                style={selected.textureUrl
+                  ? {
+                      backgroundImage: `url(${selected.textureUrl})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }
+                  : { backgroundColor: selected.color }}
+              />
               <div>
                 <p className="text-sm font-semibold">{selected.name}</p>
-                <p className="text-xs text-brand-charcoal/50">{selected.description}</p>
+                {selected.id !== selected.name && (
+                  <p className="text-[10px] text-brand-charcoal/50 font-mono break-all">{selected.id}</p>
+                )}
+                {selected.description && selected.description !== selected.id && (
+                  <p className="text-xs text-brand-charcoal/40">{selected.description}</p>
+                )}
               </div>
             </div>
           </div>
@@ -365,6 +405,8 @@ function MaterialsStep() {
 function SummaryStep() {
   const config = useLivingUnitStore((s) => s.config);
   const price = useLivingUnitStore((s) => s.price);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const bodyMat = getMaterialById(config.bodyMaterialId);
   const frontMat = getMaterialById(config.frontMaterialId);
@@ -372,6 +414,35 @@ function SummaryStep() {
 
   const delivery = bodyMat?.type === 'lemn-masiv' ? '10-14 săptămâni' :
                    bodyMat?.type === 'furnir' ? '8-12 săptămâni' : '6-10 săptămâni';
+
+  async function handleOfferSubmit(data: {
+    firstName: string;
+    lastName: string;
+    phone: string;
+    email: string;
+  }) {
+    setStatusMessage(null);
+
+    const pdfBase64 = generateLivingUnitPDFBase64(config);
+
+    const res = await fetch('/api/send-offer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...data,
+        configType: 'Corp Living Suspendat',
+        pdfBase64,
+        pdfFilename: getLivingUnitPDFFileName(config),
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.error || 'Nu am putut trimite oferta. Incearca din nou.');
+    }
+
+    setStatusMessage('Cererea a fost trimisa cu succes. Revenim catre tine in cel mai scurt timp.');
+  }
 
   return (
     <div className="space-y-6">
@@ -412,6 +483,10 @@ function SummaryStep() {
         <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
           <span className="text-sm text-brand-charcoal/60">Înălțime turn</span>
           <span className="text-sm font-semibold">{towerHeight} cm</span>
+        </div>
+        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
+          <span className="text-sm text-brand-charcoal/60">Polițe corp deschis</span>
+          <span className="text-sm font-semibold">{config.openShelfCount}</span>
         </div>
         <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
           <span className="text-sm text-brand-charcoal/60">Oglindire</span>
@@ -507,11 +582,31 @@ function SummaryStep() {
 
       {/* Actions */}
       <div className="space-y-3">
-        <button className="btn-primary w-full text-center justify-center">
+        <button
+          onClick={() => setIsOfferModalOpen(true)}
+          className="btn-primary w-full text-center justify-center"
+        >
           <ShoppingCart className="w-5 h-5 mr-2" />
           Solicită Ofertă
         </button>
+        <button
+          onClick={() => exportLivingUnitPDF(config)}
+          className="btn-secondary w-full text-center justify-center text-sm"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Exporta PDF
+        </button>
+        {statusMessage && (
+          <p className="text-xs text-brand-sage">{statusMessage}</p>
+        )}
       </div>
+
+      <OfferRequestModal
+        isOpen={isOfferModalOpen}
+        onClose={() => setIsOfferModalOpen(false)}
+        onSubmit={handleOfferSubmit}
+        title="Solicita oferta"
+      />
     </div>
   );
 }
