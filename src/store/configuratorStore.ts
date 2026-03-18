@@ -98,8 +98,8 @@ const defaultCompartments: CompartmentConfig = {
 const defaultConfig: FurnitureConfig = {
   category: 'biblioteci',
   dimensions: { width: 120, height: 180, depth: 30 },
-  bodyMaterialId: 'custom-texture',
-  frontMaterialId: 'custom-texture',
+  bodyMaterialId: 'EGGER_H1384_ST40_White Casella Oak',
+  frontMaterialId: 'EGGER_H1384_ST40_White Casella Oak',
   compartments: { ...defaultCompartments },
   fronts: [],
   baseType: 'none',

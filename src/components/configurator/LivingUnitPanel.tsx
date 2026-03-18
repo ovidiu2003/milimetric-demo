@@ -29,27 +29,31 @@ function formatPrice(price: number): string {
 // Stylish slider with visible thumb + gradient track
 // ──────────────────────────────────────────────
 function ParamSlider({
-  label, value, min, max, step, unit, onChange,
+  label, value, min, max, step, unit, onChange, scale = 1,
 }: {
   label: string; value: number; min: number; max: number; step: number; unit: string;
-  onChange: (v: number) => void;
+  onChange: (v: number) => void; scale?: number;
 }) {
+  const dv = Math.round(value * scale);
+  const dmin = Math.round(min * scale);
+  const dmax = Math.round(max * scale);
+  const dstep = Math.round(step * scale);
   const pct = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
 
   return (
-    <div className="group">
+    <div className="group overflow-visible px-1 pt-1 pb-2">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[13px] text-brand-charcoal/60 leading-none group-hover:text-brand-charcoal/80 transition-colors">{label}</span>
         <div className="flex items-baseline gap-0.5">
           <input
             type="number"
-            value={value}
+            value={dv}
             onChange={(e) => {
               const v = parseInt(e.target.value);
-              if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v)));
+              if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v / scale)));
             }}
-            className="w-12 text-right bg-transparent text-[14px] font-semibold text-brand-dark tabular-nums focus:outline-none focus:bg-white focus:shadow-sm focus:ring-1 focus:ring-brand-accent/20 rounded px-0.5 py-0 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            min={min} max={max} step={step}
+            className="w-14 text-right bg-transparent text-[14px] font-semibold text-brand-dark tabular-nums focus:outline-none focus:bg-white focus:shadow-sm focus:ring-1 focus:ring-brand-accent/20 rounded px-0.5 py-0 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            min={dmin} max={dmax} step={dstep}
           />
           <span className="text-[11px] text-brand-charcoal/40 leading-none">{unit}</span>
         </div>
@@ -62,7 +66,7 @@ function ParamSlider({
         />
         {/* Floating value tooltip */}
         <div className="slider-tooltip" style={{ left: `${pct}%` }}>
-          {value}{unit}
+          {dv}{unit}
         </div>
         {/* Thumb indicator */}
         <div
@@ -72,8 +76,8 @@ function ParamSlider({
         {/* Invisible range input for interaction */}
         <input
           type="range"
-          min={min} max={max} step={step} value={value}
-          onChange={(e) => onChange(parseInt(e.target.value))}
+          min={dmin} max={dmax} step={dstep} value={dv}
+          onChange={(e) => onChange(parseInt(e.target.value) / scale)}
           className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer"
           style={{ touchAction: 'none' }}
         />
@@ -133,7 +137,7 @@ function ParametersStep() {
             <ParamSlider
               label="Înălțime suspendare"
               value={c.suspensionHeight}
-              {...LIVING_UNIT_LIMITS.suspensionHeight} unit="cm"
+              {...LIVING_UNIT_LIMITS.suspensionHeight} unit="mm" scale={10}
               onChange={setSuspensionHeight}
             />
           </div>
@@ -142,13 +146,13 @@ function ParametersStep() {
             <ParamSlider
               label="Înălțime"
               value={c.comodaHeight}
-              {...LIVING_UNIT_LIMITS.comodaHeight} unit="cm"
+              {...LIVING_UNIT_LIMITS.comodaHeight} unit="mm" scale={10}
               onChange={setComodaHeight}
             />
             <ParamSlider
               label="Lățime"
               value={c.comodaWidth}
-              {...LIVING_UNIT_LIMITS.comodaWidth} unit="cm"
+              {...LIVING_UNIT_LIMITS.comodaWidth} unit="mm" scale={10}
               onChange={setComodaWidth}
             />
             <ParamSlider
@@ -169,7 +173,7 @@ function ParametersStep() {
             <ParamSlider
               label="Lățime"
               value={c.raftWidth}
-              {...LIVING_UNIT_LIMITS.raftWidth} unit="cm"
+              {...LIVING_UNIT_LIMITS.raftWidth} unit="mm" scale={10}
               onChange={setRaftWidth}
             />
             <ParamSlider
@@ -184,7 +188,7 @@ function ParametersStep() {
             <ParamSlider
               label="Lățime"
               value={c.dulapWidth}
-              {...LIVING_UNIT_LIMITS.dulapWidth} unit="cm"
+              {...LIVING_UNIT_LIMITS.dulapWidth} unit="mm" scale={10}
               onChange={setDulapWidth}
             />
             {/* Mirror toggle */}
@@ -214,13 +218,13 @@ function ParametersStep() {
         <ParamSlider
           label="Înălțime totală"
           value={c.totalHeight}
-          {...LIVING_UNIT_LIMITS.totalHeight} unit="cm"
+          {...LIVING_UNIT_LIMITS.totalHeight} unit="mm" scale={10}
           onChange={setTotalHeight}
         />
         <ParamSlider
           label="Adâncime"
           value={c.depth}
-          {...LIVING_UNIT_LIMITS.depth} unit="cm"
+          {...LIVING_UNIT_LIMITS.depth} unit="mm" scale={10}
           onChange={setDepth}
         />
       </div>
@@ -229,10 +233,10 @@ function ParametersStep() {
       <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#F5F3EE] text-[12px] shrink-0 mt-auto">
         <span className="text-brand-charcoal/55">Dimensiuni</span>
         <div className="flex items-center gap-3 font-semibold text-brand-dark tabular-nums">
-          <span>L <span className="text-brand-charcoal/80">{c.totalWidth}</span></span>
-          <span>H <span className="text-brand-charcoal/80">{c.totalHeight}</span></span>
-          <span>A <span className="text-brand-charcoal/80">{c.depth}</span></span>
-          <span className="text-brand-charcoal/45 font-normal">cm</span>
+          <span>L <span className="text-brand-charcoal/80">{c.totalWidth * 10}</span></span>
+          <span>H <span className="text-brand-charcoal/80">{c.totalHeight * 10}</span></span>
+          <span>A <span className="text-brand-charcoal/80">{c.depth * 10}</span></span>
+          <span className="text-brand-charcoal/45 font-normal">mm</span>
         </div>
       </div>
     </div>
@@ -372,7 +376,7 @@ function SummaryRow({ label, value }: { label: string; value: React.ReactNode })
   return (
     <div className="flex justify-between items-center py-1.5 border-b border-brand-beige/15 last:border-0">
       <span className="text-[12px] text-brand-charcoal/60">{label}</span>
-      <span className="text-[12px] font-semibold text-brand-dark">{value}</span>
+      <span className="text-[12px] font-semibold text-brand-dark tabular-nums">{value}</span>
     </div>
   );
 }
@@ -426,7 +430,7 @@ function SummaryStep() {
       <div className="rounded-xl bg-gradient-to-br from-brand-accent/10 via-brand-accent/5 to-transparent px-4 py-3.5 text-center border border-brand-accent/10">
         <p className="text-[10px] text-brand-charcoal/50 uppercase tracking-wider mb-1">Preț estimat (TVA inclus)</p>
         <p className="text-[28px] font-bold text-brand-accent leading-none tabular-nums">{formatPrice(Math.round(price.total * 1.19))}</p>
-        <p className="text-[11px] text-brand-charcoal/40 mt-1">{formatPrice(price.total)} fără TVA</p>
+        <p className="text-[11px] text-brand-charcoal/40 mt-1 tabular-nums">{formatPrice(price.total)} fără TVA</p>
       </div>
 
       {/* Material + delivery bar */}
@@ -468,11 +472,11 @@ function SummaryStep() {
       {showDetails && (
         <div className="space-y-2 animate-fade-in">
           <div className="rounded-lg bg-[#F5F3EE] px-3 py-1">
-            <SummaryRow label="Dimensiuni" value={`${config.totalWidth} × ${config.totalHeight} × ${config.depth} cm`} />
-            <SummaryRow label="Comodă" value={`${config.comodaWidth}×${config.comodaHeight} cm · ${config.comodaColumns} col`} />
-            <SummaryRow label="Raft deschis" value={`${config.raftWidth} cm · ${config.openShelfCount} polițe`} />
-            <SummaryRow label="Dulap" value={`${config.dulapWidth}×${towerHeight} cm${config.mirrored ? ' · oglindit' : ''}`} />
-            <SummaryRow label="Suspendare" value={`${config.suspensionHeight} cm`} />
+            <SummaryRow label="Dimensiuni" value={`${config.totalWidth * 10} × ${config.totalHeight * 10} × ${config.depth * 10} mm`} />
+            <SummaryRow label="Comodă" value={`${config.comodaWidth * 10}×${config.comodaHeight * 10} mm · ${config.comodaColumns} col`} />
+            <SummaryRow label="Raft deschis" value={`${config.raftWidth * 10} mm · ${config.openShelfCount} polițe`} />
+            <SummaryRow label="Dulap" value={`${config.dulapWidth * 10}×${towerHeight * 10} mm${config.mirrored ? ' · oglindit' : ''}`} />
+            <SummaryRow label="Suspendare" value={`${config.suspensionHeight * 10} mm`} />
           </div>
 
           {/* Price breakdown */}
@@ -495,7 +499,7 @@ function SummaryStep() {
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => setIsOfferModalOpen(true)}
-          className="flex-1 py-3 rounded-xl bg-gradient-to-b from-brand-accent to-[#8a6d5a] hover:from-[#b08e78] hover:to-brand-accent text-white font-semibold text-[14px] transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
+          className="flex-1 py-3 rounded-xl bg-brand-dark hover:bg-brand-charcoal text-white font-semibold text-[14px] transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
         >
           <ShoppingCart className="w-4 h-4" />
           Solicită Ofertă
@@ -578,9 +582,9 @@ export default function LivingUnitPanel() {
                 >
                   <span className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold transition-all duration-200 ${
                     isActive
-                      ? 'bg-gradient-to-b from-brand-accent to-[#8a6d5a] text-white shadow-sm'
+                      ? 'bg-brand-dark text-white shadow-sm'
                       : isDone
-                        ? 'bg-brand-accent/15 text-brand-accent'
+                        ? 'bg-brand-dark text-white'
                         : 'bg-brand-beige/25 text-brand-charcoal/35'
                   }`}>
                     {isDone ? <Check className="w-3 h-3" /> : i + 1}
@@ -620,7 +624,7 @@ export default function LivingUnitPanel() {
       </div>
 
       {/* ── Step content (scrollable only if needed) ── */}
-      <div className="flex-1 overflow-y-auto min-h-0 pb-16 lg:pb-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 pb-16 lg:pb-0">
         {renderStep()}
       </div>
 
@@ -643,7 +647,7 @@ export default function LivingUnitPanel() {
             </div>
             <button
               onClick={nextStep}
-              className="py-2.5 px-6 rounded-xl bg-gradient-to-b from-brand-accent to-[#8a6d5a] hover:from-[#b08e78] hover:to-brand-accent text-white text-[13px] font-semibold transition-all duration-200 flex items-center gap-1.5 shadow-md hover:shadow-lg active:scale-[0.98]"
+              className="py-2.5 px-6 rounded-xl bg-brand-dark hover:bg-brand-charcoal text-white text-[13px] font-semibold transition-all duration-200 flex items-center gap-1.5 shadow-md hover:shadow-lg active:scale-[0.98]"
             >
               Continuă
               <ArrowRight className="w-3.5 h-3.5" />

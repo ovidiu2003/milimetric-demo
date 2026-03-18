@@ -10,19 +10,23 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          cream: '#F7F4EF',
-          beige: '#D9CFC4',
-          dark: '#3B2E26',
-          charcoal: '#4A3C33',
-          warm: '#EDE8E1',
-          accent: '#A0826D',
-          'accent-hover': '#8B6E5A',
+          cream: '#fafafa',
+          beige: '#e0ddd8',
+          dark: '#080808',
+          charcoal: '#404040',
+          warm: '#f2f2ee',
+          accent: '#080808',
+          'accent-hover': '#333333',
           sage: '#7D8B73',
+          gold: '#f9e1a1',
+          muted: '#969696',
         },
       },
       fontFamily: {
-        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+        sans: ['Raleway', 'system-ui', 'sans-serif'],
         display: ['Cormorant Garamond', 'serif'],
+        hand: ['Caveat', 'cursive'],
+        mono: ['DM Mono', 'ui-monospace', 'monospace'],
       },
       maxWidth: {
         container: '1200px',

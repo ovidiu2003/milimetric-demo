@@ -223,6 +223,15 @@ function CatalogContent() {
           </div>
         </div>
       </div>
+
+      {/* Above footer image — extends 150px below into footer area */}
+      <div className="w-full relative z-0 -mb-[80px] md:-mb-[150px]">
+        <img
+          src="/media/above_footer.png"
+          alt=""
+          className="w-full h-[200px] sm:h-[300px] md:h-auto object-cover object-center block"
+        />
+      </div>
     </div>
   );
 }

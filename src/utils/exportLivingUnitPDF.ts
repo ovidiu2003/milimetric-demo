@@ -287,13 +287,13 @@ function drawLivingFrontView(
   doc.line(offsetX, totalDimY, offsetX + drawW, totalDimY);
   doc.line(offsetX, totalDimY - 2, offsetX, totalDimY + 2);
   doc.line(offsetX + drawW, totalDimY - 2, offsetX + drawW, totalDimY + 2);
-  doc.text(`${config.totalWidth} cm`, offsetX + drawW / 2, totalDimY + 4, { align: 'center' });
+  doc.text(`${config.totalWidth * 10} mm`, offsetX + drawW / 2, totalDimY + 4, { align: 'center' });
 
   const totalDimX = offsetX + drawW + 8;
   doc.line(totalDimX, offsetY, totalDimX, offsetY + drawH);
   doc.line(totalDimX - 2, offsetY, totalDimX + 2, offsetY);
   doc.line(totalDimX - 2, offsetY + drawH, totalDimX + 2, offsetY + drawH);
-  doc.text(`${config.totalHeight} cm`, totalDimX + 4, offsetY + drawH / 2, {
+  doc.text(`${config.totalHeight * 10} mm`, totalDimX + 4, offsetY + drawH / 2, {
     angle: 90,
     align: 'center',
   });
@@ -302,13 +302,13 @@ function drawLivingFrontView(
   doc.line(towerX, towerDimY, towerX + towerWScaled, towerDimY);
   doc.line(towerX, towerDimY - 1.5, towerX, towerDimY + 1.5);
   doc.line(towerX + towerWScaled, towerDimY - 1.5, towerX + towerWScaled, towerDimY + 1.5);
-  doc.text(`${d.towerWidth} cm`, towerX + towerWScaled / 2, towerDimY - 1.5, { align: 'center' });
+  doc.text(`${d.towerWidth * 10} mm`, towerX + towerWScaled / 2, towerDimY - 1.5, { align: 'center' });
 
   const comodaDimY = comodaY + comodaHScaled + 14;
   doc.line(comodaX, comodaDimY, comodaX + comodaWScaled, comodaDimY);
   doc.line(comodaX, comodaDimY - 1.5, comodaX, comodaDimY + 1.5);
   doc.line(comodaX + comodaWScaled, comodaDimY - 1.5, comodaX + comodaWScaled, comodaDimY + 1.5);
-  doc.text(`${config.comodaWidth} cm`, comodaX + comodaWScaled / 2, comodaDimY + 4, { align: 'center' });
+  doc.text(`${config.comodaWidth * 10} mm`, comodaX + comodaWScaled / 2, comodaDimY + 4, { align: 'center' });
 }
 
 function drawLivingSideView(
@@ -355,13 +355,13 @@ function drawLivingSideView(
   doc.line(offsetX, depthDimY, offsetX + drawW, depthDimY);
   doc.line(offsetX, depthDimY - 2, offsetX, depthDimY + 2);
   doc.line(offsetX + drawW, depthDimY - 2, offsetX + drawW, depthDimY + 2);
-  doc.text(`${config.depth} cm`, offsetX + drawW / 2, depthDimY + 4, { align: 'center' });
+  doc.text(`${config.depth * 10} mm`, offsetX + drawW / 2, depthDimY + 4, { align: 'center' });
 
   const totalDimX = offsetX + drawW + 8;
   doc.line(totalDimX, offsetY, totalDimX, offsetY + drawH);
   doc.line(totalDimX - 2, offsetY, totalDimX + 2, offsetY);
   doc.line(totalDimX - 2, offsetY + drawH, totalDimX + 2, offsetY + drawH);
-  doc.text(`${config.totalHeight} cm`, totalDimX + 4, offsetY + drawH / 2, {
+  doc.text(`${config.totalHeight * 10} mm`, totalDimX + 4, offsetY + drawH / 2, {
     angle: 90,
     align: 'center',
   });
@@ -370,13 +370,13 @@ function drawLivingSideView(
   doc.line(suspensionDimX, comodaY + comodaHScaled, suspensionDimX, offsetY + drawH);
   doc.line(suspensionDimX - 1.5, comodaY + comodaHScaled, suspensionDimX + 1.5, comodaY + comodaHScaled);
   doc.line(suspensionDimX - 1.5, offsetY + drawH, suspensionDimX + 1.5, offsetY + drawH);
-  doc.text(`${config.suspensionHeight} cm`, suspensionDimX - 3.5, comodaY + comodaHScaled + suspensionScaled / 2, {
+  doc.text(`${config.suspensionHeight * 10} mm`, suspensionDimX - 3.5, comodaY + comodaHScaled + suspensionScaled / 2, {
     angle: 90,
     align: 'center',
   });
 
-  doc.text(`Comoda: ${config.comodaHeight} cm`, offsetX + drawW / 2, comodaY + comodaHScaled / 2, { align: 'center' });
-  doc.text(`Turn: ${round1(d.towerHeight)} cm`, offsetX + drawW / 2, towerY + towerHScaled / 2, { align: 'center' });
+  doc.text(`Comoda: ${config.comodaHeight * 10} mm`, offsetX + drawW / 2, comodaY + comodaHScaled / 2, { align: 'center' });
+  doc.text(`Turn: ${round1(d.towerHeight * 10)} mm`, offsetX + drawW / 2, towerY + towerHScaled / 2, { align: 'center' });
 }
 
 function createLivingUnitPDF(config: LivingUnitConfig) {
@@ -427,7 +427,7 @@ function createLivingUnitPDF(config: LivingUnitConfig) {
   doc.setFontSize(8.5);
   doc.setTextColor(90, 90, 90);
   doc.text(
-    `Dimensiuni totale: ${config.totalWidth} x ${config.totalHeight} x ${config.depth} cm | ` +
+    `Dimensiuni totale: ${config.totalWidth * 10} x ${config.totalHeight * 10} x ${config.depth * 10} mm | ` +
       `Material corp: ${bodyMatCode} | Material front: ${frontMatCode}`,
     margin,
     y
@@ -458,11 +458,11 @@ function createLivingUnitPDF(config: LivingUnitConfig) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   const detailLines = [
-    `Comoda: ${config.comodaWidth} x ${config.comodaHeight} x ${config.depth} cm, ${config.comodaColumns} coloane`,
-    `Turn vertical: ${round1(d.towerWidth)} x ${round1(d.towerHeight)} x ${config.depth} cm`,
-    `Raft deschis: ${config.raftWidth} cm latime, ${config.openShelfCount} polite`,
-    `Dulap: ${config.dulapWidth} cm latime, front usa ${round1(d.towerHeight - d.t)} cm inaltime`,
-    `Suspendare: ${config.suspensionHeight} cm | Oglindire: ${config.mirrored ? 'Da - dulap pe stanga' : 'Nu - dulap pe dreapta'}`,
+    `Comoda: ${config.comodaWidth * 10} x ${config.comodaHeight * 10} x ${config.depth * 10} mm, ${config.comodaColumns} coloane`,
+    `Turn vertical: ${round1(d.towerWidth * 10)} x ${round1(d.towerHeight * 10)} x ${config.depth * 10} mm`,
+    `Raft deschis: ${config.raftWidth * 10} mm latime, ${config.openShelfCount} polite`,
+    `Dulap: ${config.dulapWidth * 10} mm latime, front usa ${round1((d.towerHeight - d.t) * 10)} mm inaltime`,
+    `Suspendare: ${config.suspensionHeight * 10} mm | Oglindire: ${config.mirrored ? 'Da - dulap pe stanga' : 'Nu - dulap pe dreapta'}`,
     `Material corp: ${bodyMat?.name || 'N/A'} (${bodyMatCode})`,
     `Material front: ${frontMat?.name || 'N/A'} (${frontMatCode})`,
   ];
@@ -497,8 +497,8 @@ function createLivingUnitPDF(config: LivingUnitConfig) {
   doc.setTextColor(60, 60, 60);
   const cols = [margin + 2, margin + 64, margin + 88, margin + 112, margin + 130, margin + 145];
   doc.text('Piesa', cols[0], y + 5);
-  doc.text('Lungime', cols[1], y + 5);
-  doc.text('Latime', cols[2], y + 5);
+  doc.text('L (mm)', cols[1], y + 5);
+  doc.text('l (mm)', cols[2], y + 5);
   doc.text('Gros.', cols[3], y + 5);
   doc.text('Cant.', cols[4], y + 5);
   doc.text('Material', cols[5], y + 5);
@@ -518,9 +518,9 @@ function createLivingUnitPDF(config: LivingUnitConfig) {
 
     doc.setTextColor(35, 35, 35);
     doc.text(piece.name, cols[0], y + 4.3);
-    doc.text(`${piece.length}`, cols[1], y + 4.3);
-    doc.text(`${piece.width}`, cols[2], y + 4.3);
-    doc.text(`${piece.thickness}`, cols[3], y + 4.3);
+    doc.text(`${round1(piece.length * 10)}`, cols[1], y + 4.3);
+    doc.text(`${round1(piece.width * 10)}`, cols[2], y + 4.3);
+    doc.text(`${round1(piece.thickness * 10)}`, cols[3], y + 4.3);
     doc.text(`${piece.qty}`, cols[4], y + 4.3);
     doc.setTextColor(95, 95, 95);
     doc.text(piece.material.substring(0, 22), cols[5], y + 4.3);

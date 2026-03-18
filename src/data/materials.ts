@@ -1,30 +1,13 @@
 import { Material, MaterialType } from '@/types';
 
 // Static fallback material (used before dynamic textures load)
-export const materials: Material[] = [
-  {
-    id: 'custom-texture',
-    name: 'Textura Personalizata',
-    type: 'lemn-masiv',
-    woodType: 'stejar',
-    color: '#c9a96e',
-    textureUrl: '/textures/Stejar Casella natur deschis.jpg',
-    priceMultiplier: 1,
-    description: 'Material unic incarcat din folderul /public/textures.',
-    category: 'both',
-  },
-];
+export const materials: Material[] = [];
 
 export const materialTypes: { id: MaterialType; name: string; description: string }[] = [
   {
     id: 'pal-melaminat',
     name: 'EGGER / Texturi',
     description: 'Texturi incarcate automat din folderul /public/textures.',
-  },
-  {
-    id: 'lemn-masiv',
-    name: 'Textura Personalizata',
-    description: 'Material fallback disponibil in configurator.',
   },
 ];
 

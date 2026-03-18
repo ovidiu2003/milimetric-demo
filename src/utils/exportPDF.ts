@@ -300,7 +300,7 @@ function drawFrontView(
   doc.line(offsetX, dimY, offsetX + drawW, dimY);
   doc.line(offsetX, dimY - 2, offsetX, dimY + 2);
   doc.line(offsetX + drawW, dimY - 2, offsetX + drawW, dimY + 2);
-  doc.text(`${width} cm`, offsetX + drawW / 2, dimY + 4, { align: 'center' });
+  doc.text(`${width * 10} mm`, offsetX + drawW / 2, dimY + 4, { align: 'center' });
 
   // Height dimension (right)
   const dimX = offsetX + drawW + 8;
@@ -309,7 +309,7 @@ function drawFrontView(
   doc.line(dimX - 2, offsetY + drawH, dimX + 2, offsetY + drawH);
 
   // Rotated height text
-  doc.text(`${height} cm`, dimX + 4, offsetY + drawH / 2, {
+  doc.text(`${height * 10} mm`, dimX + 4, offsetY + drawH / 2, {
     angle: 90,
     align: 'center',
   });
@@ -373,7 +373,7 @@ function drawSideView(
   doc.line(offsetX, dimY2, offsetX + drawW, dimY2);
   doc.line(offsetX, dimY2 - 2, offsetX, dimY2 + 2);
   doc.line(offsetX + drawW, dimY2 - 2, offsetX + drawW, dimY2 + 2);
-  doc.text(`${depth} cm`, offsetX + drawW / 2, dimY2 + 4, { align: 'center' });
+  doc.text(`${depth * 10} mm`, offsetX + drawW / 2, dimY2 + 4, { align: 'center' });
 }
 
 /**
@@ -435,7 +435,7 @@ function createPDFDocument(config: FurnitureConfig, price: PriceBreakdown) {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   doc.text(
-    `Dimensiuni: ${config.dimensions.width} × ${config.dimensions.height} × ${config.dimensions.depth} cm | Material corp: ${bodyMatCode} | Material fronturi: ${frontMatCode}`,
+    `Dimensiuni: ${config.dimensions.width * 10} × ${config.dimensions.height * 10} × ${config.dimensions.depth * 10} mm | Material corp: ${bodyMatCode} | Material fronturi: ${frontMatCode}`,
     margin,
     curY
   );
@@ -481,9 +481,9 @@ function createPDFDocument(config: FurnitureConfig, price: PriceBreakdown) {
 
   const colX = [margin + 2, margin + 50, margin + 75, margin + 100, margin + 120, margin + 140];
   doc.text('Piesă', colX[0], curY + 5);
-  doc.text('Lungime (cm)', colX[1], curY + 5);
-  doc.text('Lățime (cm)', colX[2], curY + 5);
-  doc.text('Gros. (cm)', colX[3], curY + 5);
+  doc.text('L (mm)', colX[1], curY + 5);
+  doc.text('l (mm)', colX[2], curY + 5);
+  doc.text('Gros. (mm)', colX[3], curY + 5);
   doc.text('Cant.', colX[4], curY + 5);
   doc.text('Material', colX[5], curY + 5);
   curY += 7;
@@ -504,9 +504,9 @@ function createPDFDocument(config: FurnitureConfig, price: PriceBreakdown) {
 
     doc.setTextColor(40, 40, 40);
     doc.text(piece.name, colX[0], curY + 4.5);
-    doc.text(`${piece.width}`, colX[1], curY + 4.5);
-    doc.text(`${piece.height}`, colX[2], curY + 4.5);
-    doc.text(`${piece.thickness}`, colX[3], curY + 4.5);
+    doc.text(`${Math.round(piece.width * 10)}`, colX[1], curY + 4.5);
+    doc.text(`${Math.round(piece.height * 10)}`, colX[2], curY + 4.5);
+    doc.text(`${Math.round(piece.thickness * 10)}`, colX[3], curY + 4.5);
     doc.text(`${piece.qty}`, colX[4], curY + 4.5);
     doc.setTextColor(100, 100, 100);
     doc.text(piece.material.substring(0, 18), colX[5], curY + 4.5);

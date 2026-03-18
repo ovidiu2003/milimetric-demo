@@ -2,9 +2,11 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Edges } from '@react-three/drei';
 import * as THREE from 'three';
 import { useLivingUnitStore } from '@/store/livingUnitStore';
 import { getMaterialById } from '@/data/materials';
+import { useTextures } from '@/hooks/useTextures';
 
 function HoverAnimatedFront({
   children,
@@ -116,7 +118,7 @@ function cloneTextureWithRotation(
   texture.magFilter = THREE.LinearFilter;
   texture.center.set(0.5, 0.5);
   texture.rotation = rotation;
-  texture.repeat.set(3, 3);
+  texture.repeat.set(1, 1);
   texture.needsUpdate = true;
 
   return texture;
@@ -142,6 +144,7 @@ function cloneTextureWithRotation(
 export default function LivingUnitModel() {
   const groupRef = useRef<THREE.Group>(null);
   const config = useLivingUnitStore((s) => s.config);
+  useTextures(); // ensure dynamic materials are loaded & trigger re-render
 
   const bodyMaterial = getMaterialById(config.bodyMaterialId);
   const frontMaterial = getMaterialById(config.frontMaterialId);
@@ -157,7 +160,7 @@ export default function LivingUnitModel() {
     texture.anisotropy = 8;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.repeat.set(3, 3);
+    texture.repeat.set(1, 1);
     return texture;
   }, [bodyMaterial?.textureUrl]);
   const frontTexture = useMemo(() => {
@@ -169,7 +172,7 @@ export default function LivingUnitModel() {
     texture.anisotropy = 8;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.repeat.set(3, 3);
+    texture.repeat.set(1, 1);
     return texture;
   }, [frontMaterial?.textureUrl]);
   const horizontalBodyTexture = useMemo(
@@ -195,9 +198,8 @@ export default function LivingUnitModel() {
   // Scale: cm → Three.js meters
   const S = 0.01;
   const T = 1.8 * S; // panel thickness (1.8 cm)
-  const FRONT_GAP = 1.0 * S; // front panel overhang
-  const FRONT_JOINT_GAP = 1.5 * S; // small reveal between adjacent fronts
-  const FRONT_EDGE = 0.3 * S; // thin dark edge around front panels
+  const FRONT_GAP = 0; // fronts flush with body
+  const FRONT_JOINT_GAP = 2.0 * S; // small reveal between adjacent fronts
   const TOP_FRONT_OVERHANG = 1.0 * S; // top panel extends forward to cover front edge
 
   const {
@@ -263,7 +265,7 @@ export default function LivingUnitModel() {
   const moduleW    = CW / numCompartments;
   const moduleInnerW = moduleW - 2 * T;
   // Keep the top panel visible above fronts: fronts sit below the top plate.
-  const frontH     = CH;
+  const frontH     = CH - T; // leave gap for countertop to avoid z-fighting
   const frontW     = moduleW - FRONT_JOINT_GAP;
   const comodaBackH = CH - 2 * T;
   const raftTopW = RW;
@@ -287,6 +289,7 @@ export default function LivingUnitModel() {
       <mesh position={[0, comodaTopY + T / 2, TOP_FRONT_OVERHANG / 2]} castShadow receiveShadow>
         <boxGeometry args={[CW, T, D + TOP_FRONT_OVERHANG]} />
         <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* Segmented comoda modules (each with individual side panels) */}
@@ -297,18 +300,22 @@ export default function LivingUnitModel() {
             <mesh position={[mx, comodaBotY + T / 2, 0]} castShadow receiveShadow>
               <boxGeometry args={[moduleInnerW, T, D]} />
               <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+              <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
             </mesh>
             <mesh position={[mx, comodaTopY - T / 2, 0]} castShadow receiveShadow>
               <boxGeometry args={[moduleInnerW, T, D]} />
               <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+              <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
             </mesh>
             <mesh position={[mx - moduleW / 2 + T / 2, comodaMidY, 0]} castShadow receiveShadow>
               <boxGeometry args={[T, CH, D]} />
               <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+              <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
             </mesh>
             <mesh position={[mx + moduleW / 2 - T / 2, comodaMidY, 0]} castShadow receiveShadow>
               <boxGeometry args={[T, CH, D]} />
               <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+              <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
             </mesh>
             <mesh position={[mx, comodaMidY, -D / 2 + T / 4]} castShadow receiveShadow>
               <boxGeometry args={[moduleInnerW, comodaBackH, T / 2]} />
@@ -323,20 +330,16 @@ export default function LivingUnitModel() {
         const x = comodaXL + moduleW * i + moduleW / 2;
         return (
           <HoverAnimatedFront key={`cf-${i}`} mode="drawer" panelWidth={frontW}>
-            <group position={[x, comodaMidY, D / 2 + FRONT_GAP]}>
-              {/* Shadow edge behind front — creates visible border */}
-              <mesh position={[0, 0, -FRONT_EDGE / 2]}>
-                <boxGeometry args={[frontW + FRONT_EDGE, frontH + FRONT_EDGE, FRONT_EDGE]} />
-                <meshStandardMaterial color="#1a1a1a" roughness={0.9} metalness={0} />
-              </mesh>
+            <group position={[x, comodaMidY - T / 2, D / 2 + TOP_FRONT_OVERHANG - T / 2]}>
               {/* Panel */}
               <mesh castShadow>
-                <boxGeometry args={[frontW, frontH, T / 2]} />
+                <boxGeometry args={[frontW, frontH, T]} />
                 <meshStandardMaterial
                   color={unifiedFrontColor}
                   map={horizontalFrontTexture || undefined}
                   roughness={0.62} metalness={0.02} envMapIntensity={0.06}
                 />
+                <Edges threshold={15} color="#2a2218" lineWidth={1} />
               </mesh>
             </group>
           </HoverAnimatedFront>
@@ -351,60 +354,70 @@ export default function LivingUnitModel() {
       <mesh position={[towerX1 + T / 2, towerMidY, 0]} castShadow receiveShadow>
         <boxGeometry args={[T, TH, D]} />
         <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* Right tower panel */}
       <mesh position={[towerX2 - T / 2, towerMidY, 0]} castShadow receiveShadow>
         <boxGeometry args={[T, TH, D]} />
         <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* Top panel - open shelf module */}
       <mesh position={[raftMidX, H - T / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[raftTopW, T, D]} />
         <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* Bottom panel - open shelf module */}
       <mesh position={[raftMidX, towerBaseY + T / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[raftBackW, T, D]} />
         <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* Top panel - closed cabinet module */}
       <mesh position={[dulapMidX, H - T / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[dulapTopW, T, D]} />
         <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* Bottom panel - closed cabinet module */}
       <mesh position={[dulapMidX, towerBaseY + T / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[dulapBackW, T, D]} />
         <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* Back panel - open shelf module */}
       <mesh position={[raftMidX, towerMidY - T / 2, -D / 2 + T / 4]} castShadow receiveShadow>
         <boxGeometry args={[raftBackW, towerBackH, T / 2]} />
         <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* Back panel - closed cabinet module */}
       <mesh position={[dulapMidX, towerMidY - T / 2, -D / 2 + T / 4]} castShadow receiveShadow>
         <boxGeometry args={[dulapBackW, towerBackH, T / 2]} />
         <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* Inner side - open shelf module */}
       <mesh position={[raftInnerSideX, towerMidY - T / 2, 0]} castShadow>
         <boxGeometry args={[T, TH - T, D - T / 2]} />
         <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* Inner side - closed cabinet module */}
       <mesh position={[dulapInnerSideX, towerMidY - T / 2, 0]} castShadow>
         <boxGeometry args={[T, TH - T, D - T / 2]} />
         <meshStandardMaterial color={unifiedBodyColor} map={verticalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* ══════════════════════════════════════════════════
@@ -416,6 +429,7 @@ export default function LivingUnitModel() {
           <mesh key={`rs-${i}`} position={[openRaftMidX, y, 0]} castShadow>
             <boxGeometry args={[openRaftShelfW, T, D - T]} />
             <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+            <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
           </mesh>
         );
       })}
@@ -431,21 +445,17 @@ export default function LivingUnitModel() {
         mode="door"
         panelWidth={DW}
         hingeSide={mirrored ? 1 : -1}
-        hingePosition={[mirrored ? dX2 : dX1, towerMidY, D / 2 + FRONT_GAP]}
+        hingePosition={[mirrored ? dX2 : dX1, towerMidY, D / 2 + TOP_FRONT_OVERHANG - T / 2]}
       >
-        {/* Shadow edge behind door — creates visible border */}
-        <mesh position={[0, 0, -FRONT_EDGE / 2]}>
-          <boxGeometry args={[DW - FRONT_JOINT_GAP + FRONT_EDGE, TH + FRONT_EDGE, FRONT_EDGE]} />
-          <meshStandardMaterial color="#1a1a1a" roughness={0.9} metalness={0} />
-        </mesh>
         {/* Door panel — covers full tower height including bottom */}
         <mesh castShadow>
-          <boxGeometry args={[DW - FRONT_JOINT_GAP, TH, T / 2]} />
+          <boxGeometry args={[DW - FRONT_JOINT_GAP, TH, T]} />
           <meshStandardMaterial
             color={unifiedFrontColor}
             map={verticalFrontTexture || undefined}
             roughness={0.62} metalness={0.02} envMapIntensity={0.06}
           />
+          <Edges threshold={15} color="#2a2218" lineWidth={1} />
         </mesh>
       </HoverAnimatedFront>
 

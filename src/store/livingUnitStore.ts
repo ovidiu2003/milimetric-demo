@@ -36,8 +36,8 @@ const defaultConfig: LivingUnitConfig = {
   totalHeight: 260,
   depth: 40,
   mirrored: false,
-  bodyMaterialId: 'custom-texture',
-  frontMaterialId: 'custom-texture',
+  bodyMaterialId: 'EGGER_H1384_ST40_White Casella Oak',
+  frontMaterialId: 'EGGER_H1384_ST40_White Casella Oak',
 };
 
 /** Recalculates totalWidth from comoda and tower widths */

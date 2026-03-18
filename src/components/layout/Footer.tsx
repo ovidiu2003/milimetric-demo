@@ -31,7 +31,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className={`relative z-10 bg-[#1A150F] text-[#F7F4EF]/70${isConfigurator ? ' hidden lg:block' : ''}`}>
+    <footer className={`relative z-10 bg-[#0a0a0a] text-[#fafafa]/70${isConfigurator ? ' hidden lg:block' : ''}`}>
 
       {/* ── Main footer content ── */}
       <div className="max-w-6xl mx-auto px-6 sm:px-8 py-20 md:py-28">
@@ -52,14 +52,14 @@ export default function Footer() {
             <div className="mt-8 space-y-3.5">
               <a
                 href="mailto:comenzi@milimetric.ro"
-                className="flex items-center gap-3 text-[0.9rem] text-white/50 hover:text-[#C09850] transition-colors duration-300"
+                className="flex items-center gap-3 text-[0.9rem] text-white/50 hover:text-[#f9e1a1] transition-colors duration-300"
               >
                 <Mail className="w-4 h-4 flex-shrink-0" />
                 <span>comenzi@milimetric.ro</span>
               </a>
               <a
                 href="tel:+40759203138"
-                className="flex items-center gap-3 text-[0.9rem] text-white/50 hover:text-[#C09850] transition-colors duration-300"
+                className="flex items-center gap-3 text-[0.9rem] text-white/50 hover:text-[#f9e1a1] transition-colors duration-300"
               >
                 <Phone className="w-4 h-4 flex-shrink-0" />
                 <span>+40 759 203 138</span>
@@ -73,15 +73,15 @@ export default function Footer() {
             {/* Social */}
             <div className="flex items-center gap-5 mt-8">
               <a href="https://www.facebook.com/share/16Ugetaudk/" target="_blank" rel="noopener noreferrer"
-                className="text-white/25 hover:text-[#C09850] transition-colors duration-300">
+                className="text-white/25 hover:text-[#f9e1a1] transition-colors duration-300">
                 <Facebook className="w-5 h-5" />
               </a>
               <a href="https://www.instagram.com/milimetric.ro" target="_blank" rel="noopener noreferrer"
-                className="text-white/25 hover:text-[#C09850] transition-colors duration-300">
+                className="text-white/25 hover:text-[#f9e1a1] transition-colors duration-300">
                 <Instagram className="w-5 h-5" />
               </a>
               <a href="https://www.linkedin.com/company/milimetric-ro" target="_blank" rel="noopener noreferrer"
-                className="text-white/25 hover:text-[#C09850] transition-colors duration-300">
+                className="text-white/25 hover:text-[#f9e1a1] transition-colors duration-300">
                 <Linkedin className="w-5 h-5" />
               </a>
             </div>
@@ -147,7 +147,7 @@ export default function Footer() {
           </p>
           <button
             onClick={scrollToTop}
-            className="flex items-center gap-2 text-white/20 hover:text-[#C09850] transition-colors duration-300 text-[0.8rem] tracking-wide"
+            className="flex items-center gap-2 text-white/20 hover:text-[#f9e1a1] transition-colors duration-300 text-[0.8rem] tracking-wide"
           >
             <span>ÎNAPOI SUS</span>
             <ArrowUp className="w-3.5 h-3.5" />

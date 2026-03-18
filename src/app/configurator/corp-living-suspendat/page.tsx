@@ -37,7 +37,9 @@ function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heig
     borderRadius: '6px',
     padding: '2px 6px',
     fontSize: '11px',
-    fontWeight: 600,
+    fontWeight: 400,
+    fontFamily: "'DM Mono', ui-monospace, monospace",
+    fontVariantNumeric: 'tabular-nums',
     color: '#111827',
     whiteSpace: 'nowrap',
   };
@@ -50,7 +52,7 @@ function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heig
       <Line points={[[w / 2, yGuide, d / 2 + offset], [w / 2 - arrowLen, yGuide, d / 2 + offset + arrowWing]]} color={widthColor} lineWidth={1} />
       <Line points={[[w / 2, yGuide, d / 2 + offset], [w / 2 - arrowLen, yGuide, d / 2 + offset - arrowWing]]} color={widthColor} lineWidth={1} />
       <Html position={[0, yGuide + 0.03, d / 2 + offset]} center sprite>
-        <div style={{ ...labelStyle, borderColor: 'rgba(194,65,12,0.35)' }}>L {widthCm} cm</div>
+        <div style={{ ...labelStyle, borderColor: 'rgba(194,65,12,0.35)' }}>L {widthCm * 10} mm</div>
       </Html>
 
       <Line points={[[-w / 2 - offset, 0, d / 2 + offset], [-w / 2 - offset, h, d / 2 + offset]]} color={heightColor} lineWidth={1} />
@@ -59,7 +61,7 @@ function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heig
       <Line points={[[-w / 2 - offset, h, d / 2 + offset], [-w / 2 - offset, h - arrowLen, d / 2 + offset + arrowWing]]} color={heightColor} lineWidth={1} />
       <Line points={[[-w / 2 - offset, h, d / 2 + offset], [-w / 2 - offset, h - arrowLen, d / 2 + offset - arrowWing]]} color={heightColor} lineWidth={1} />
       <Html position={[-w / 2 - offset, h / 2, d / 2 + offset + 0.03]} center sprite>
-        <div style={{ ...labelStyle, borderColor: 'rgba(22,101,52,0.35)' }}>H {heightCm} cm</div>
+        <div style={{ ...labelStyle, borderColor: 'rgba(22,101,52,0.35)' }}>H {heightCm * 10} mm</div>
       </Html>
 
       <Line points={[[w / 2 + offset, yGuide, -d / 2], [w / 2 + offset, yGuide, d / 2]]} color={depthColor} lineWidth={1} />
@@ -68,7 +70,7 @@ function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heig
       <Line points={[[w / 2 + offset, yGuide, d / 2], [w / 2 + offset + arrowWing, yGuide, d / 2 - arrowLen]]} color={depthColor} lineWidth={1} />
       <Line points={[[w / 2 + offset, yGuide, d / 2], [w / 2 + offset - arrowWing, yGuide, d / 2 - arrowLen]]} color={depthColor} lineWidth={1} />
       <Html position={[w / 2 + offset + 0.03, yGuide + 0.02, 0]} center sprite>
-        <div style={{ ...labelStyle, borderColor: 'rgba(29,78,216,0.35)' }}>A {depthCm} cm</div>
+        <div style={{ ...labelStyle, borderColor: 'rgba(29,78,216,0.35)' }}>A {depthCm * 10} mm</div>
       </Html>
     </>
   );
@@ -77,7 +79,7 @@ function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heig
 function Scene({ isMobile }: { isMobile: boolean }) {
   const config = useLivingUnitStore((s) => s.config);
   const floorTexture = useMemo(() => {
-    const texture = new THREE.TextureLoader().load('/textures/EGGER_H1367_ST40_Light Natural Casella Oak.jpg');
+    const texture = new THREE.TextureLoader().load('/textures/textura_parchet.jpg');
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
@@ -86,11 +88,11 @@ function Scene({ isMobile }: { isMobile: boolean }) {
     return texture;
   }, []);
   const wallTexture = useMemo(() => {
-    const texture = new THREE.TextureLoader().load('/textures/EGGER_F187_ST9_Dark Grey Chicago Concrete.jpg');
+    const texture = new THREE.TextureLoader().load('/textures/textura_perete.jpg');
     texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(2.4, 1.5);
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.repeat.set(1, 1);
     texture.anisotropy = 8;
     return texture;
   }, []);
@@ -113,9 +115,9 @@ function Scene({ isMobile }: { isMobile: boolean }) {
 
       {/* Lighting */}
       {/* Low ambient so shadows have contrast */}
-      <ambientLight intensity={0.08} color="#ffffff" />
+      <ambientLight intensity={0.35} color="#ffffff" />
       {/* Sky/ground hemisphere for subtle warm bounce */}
-      <hemisphereLight intensity={0.09} color="#ffffff" groundColor="#c4c9cf" />
+      <hemisphereLight intensity={0.15} color="#ffffff" groundColor="#f0eee8" />
 
       {/* Main key light — upper-left, casts crisp shadows over shelves */}
       <directionalLight
@@ -156,7 +158,10 @@ function Scene({ isMobile }: { isMobile: boolean }) {
         penumbra={0.55}
         intensity={0.36}
         distance={7}
-        castShadow={false}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.0002}
+        shadow-normalBias={0.01}
         color="#ffffff"
       />
 
@@ -183,15 +188,13 @@ function Scene({ isMobile }: { isMobile: boolean }) {
         castShadow={false}
         color="#f5f7fa"
       />
-      <pointLight position={[-2.4, 1.5, -0.45]} intensity={0.12} distance={6} color="#eef2f7" />
-
       {/* Environment */}
       <Environment preset="studio" />
 
       {/* Room context (wall + floor) for realistic wall-mounted preview */}
       <mesh position={[0, 1.6, -0.64]} receiveShadow>
         <boxGeometry args={[9, 4.4, 0.12]} />
-        <meshStandardMaterial color="#d5d7db" map={wallTexture} roughness={0.97} metalness={0.0} />
+        <meshStandardMaterial map={wallTexture} color="#ffffff" emissive="#ffffff" emissiveMap={wallTexture} emissiveIntensity={0.55} roughness={1} metalness={0} envMapIntensity={0} />
       </mesh>
       <mesh position={[0, -0.02, 0]} receiveShadow>
         <boxGeometry args={[9, 0.04, 9]} />
@@ -255,12 +258,12 @@ function Scene({ isMobile }: { isMobile: boolean }) {
 
       {/* Post-processing: edge & corner ambient occlusion + AA */}
       {!isMobile && (
-        <EffectComposer multisampling={0}>
+        <EffectComposer multisampling={8}>
           <SSAO
             blendFunction={BlendFunction.MULTIPLY}
             samples={32}
             radius={0.03}
-            intensity={7}
+            intensity={1}
             luminanceInfluence={0.88}
             bias={0.03}
             resolutionScale={0.75}

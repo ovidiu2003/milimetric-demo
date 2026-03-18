@@ -13,16 +13,26 @@ const navigation = [
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [pastHero, setPastHero] = useState(false);
   const pathname = usePathname();
+  const isHome = pathname === '/';
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      const hero = document.getElementById('hero');
+      if (hero) {
+        const heroBottom = hero.getBoundingClientRect().bottom;
+        setPastHero(heroBottom <= 80);
+      } else {
+        setPastHero(window.scrollY > 20);
+      }
     };
+    handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const transparent = isHome && !pastHero;
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -32,8 +42,9 @@ export default function Header() {
   return (
     <>
       {/* Top Bar */}
-      <div className="bg-brand-dark text-brand-cream/70 text-xs tracking-wide py-2 hidden md:block">
-        <div className="section-container flex items-center justify-between">
+      {!isHome && (
+        <div className="bg-brand-dark text-brand-cream/70 text-xs tracking-wide py-2 hidden md:block">
+          <div className="section-container flex items-center justify-between">
           <div className="flex items-center space-x-8">
             <a href="tel:+40759203138" className="flex items-center space-x-2 hover:text-brand-cream transition-colors duration-300">
               <Phone className="w-3 h-3" />
@@ -49,21 +60,28 @@ export default function Header() {
           </span>
         </div>
       </div>
+      )}
 
       {/* ═══ Modern Navbar ═══ */}
       <header
-        className={`nav-header sticky top-0 z-50 ${
-          scrolled ? 'nav-header--scrolled' : ''
+        className={`nav-header w-full left-0 z-50 ${
+          isHome
+            ? `fixed top-0 ${pastHero ? 'nav-header--scrolled' : 'nav-header--transparent'}`
+            : 'sticky top-0 nav-header--scrolled'
         }`}
       >
         <div className="section-container">
           <div className="flex items-center justify-between h-[4.2rem] md:h-20">
             {/* Logo */}
             <Link href="/" className="flex items-baseline gap-0.5 group relative z-10">
-              <span className="font-display text-[1.75rem] md:text-[2.1rem] font-semibold tracking-[-0.01em] text-brand-dark transition-colors duration-300 group-hover:text-brand-accent">
+              <span className={`font-display text-[1.75rem] md:text-[2.1rem] font-semibold tracking-[-0.01em] transition-colors duration-300 ${
+                transparent ? 'text-white group-hover:text-brand-gold' : 'text-brand-dark group-hover:text-brand-accent'
+              }`}>
                 milimetric
               </span>
-              <span className="text-[0.7rem] md:text-[0.8rem] font-medium text-brand-accent tracking-wide">.ro</span>
+              <span className={`text-[0.7rem] md:text-[0.8rem] font-medium tracking-wide transition-colors duration-300 ${
+                transparent ? 'text-brand-gold' : 'text-brand-accent'
+              }`}>.ro</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -74,9 +92,13 @@ export default function Header() {
                     key={item.name}
                     href={item.href}
                     className={`nav-pill relative px-5 py-2.5 text-[0.9rem] tracking-[0.01em] font-medium rounded-full transition-all duration-300 ${
-                      isActive(item.href)
-                        ? 'text-brand-accent'
-                        : 'text-brand-dark/55 hover:text-brand-dark'
+                      transparent
+                        ? isActive(item.href)
+                          ? 'text-white'
+                          : 'text-white/60 hover:text-white'
+                        : isActive(item.href)
+                          ? 'text-brand-accent'
+                          : 'text-brand-dark/55 hover:text-brand-dark'
                     }`}
                   >
                     {isActive(item.href) && (
@@ -90,7 +112,7 @@ export default function Header() {
               {/* CTA */}
               <Link
                 href="/configurator/corp-living-suspendat"
-                className="nav-cta ml-2"
+                className={`ml-2 ${transparent ? 'nav-cta--transparent' : 'nav-cta'}`}
               >
                 <span>Configurator</span>
                 <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-0.5" />
@@ -102,8 +124,12 @@ export default function Header() {
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className={`lg:hidden relative z-10 w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-300 ${
                 mobileMenuOpen
-                  ? 'bg-brand-dark/5 text-brand-accent'
-                  : 'text-brand-dark/70 hover:bg-brand-dark/[0.04]'
+                  ? transparent
+                    ? 'bg-white/10 text-white'
+                    : 'bg-brand-dark/5 text-brand-accent'
+                  : transparent
+                    ? 'text-white/70 hover:bg-white/10'
+                    : 'text-brand-dark/70 hover:bg-brand-dark/[0.04]'
               }`}
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

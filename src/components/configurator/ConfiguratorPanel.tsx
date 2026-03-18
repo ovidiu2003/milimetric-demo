@@ -65,9 +65,9 @@ function DimensionsStep() {
   if (!catInfo) return null;
 
   const dims = [
-    { label: 'Lățime', key: 'width' as const, min: catInfo.minWidth, max: catInfo.maxWidth, unit: 'cm' },
-    { label: 'Înălțime', key: 'height' as const, min: catInfo.minHeight, max: catInfo.maxHeight, unit: 'cm' },
-    { label: 'Adâncime', key: 'depth' as const, min: catInfo.minDepth, max: catInfo.maxDepth, unit: 'cm' },
+    { label: 'Lățime', key: 'width' as const, min: catInfo.minWidth, max: catInfo.maxWidth, unit: 'mm' },
+    { label: 'Înălțime', key: 'height' as const, min: catInfo.minHeight, max: catInfo.maxHeight, unit: 'mm' },
+    { label: 'Adâncime', key: 'depth' as const, min: catInfo.minDepth, max: catInfo.maxDepth, unit: 'mm' },
   ];
 
   return (
@@ -90,11 +90,11 @@ function DimensionsStep() {
               </button>
               <input
                 type="number"
-                value={config.dimensions[dim.key]}
-                onChange={(e) => setDimensions({ [dim.key]: parseInt(e.target.value) || dim.min })}
-                className="w-20 text-center input-field py-1.5 text-sm font-semibold"
-                min={dim.min}
-                max={dim.max}
+                value={config.dimensions[dim.key] * 10}
+                onChange={(e) => setDimensions({ [dim.key]: (parseInt(e.target.value) || dim.min * 10) / 10 })}
+                className="w-20 text-center input-field py-1.5 text-sm font-semibold tabular-nums"
+                min={dim.min * 10}
+                max={dim.max * 10}
               />
               <button
                 onClick={() => setDimensions({ [dim.key]: config.dimensions[dim.key] + 1 })}
@@ -107,15 +107,15 @@ function DimensionsStep() {
           </div>
           <input
             type="range"
-            min={dim.min}
-            max={dim.max}
-            value={config.dimensions[dim.key]}
-            onChange={(e) => setDimensions({ [dim.key]: parseInt(e.target.value) })}
+            min={dim.min * 10}
+            max={dim.max * 10}
+            value={config.dimensions[dim.key] * 10}
+            onChange={(e) => setDimensions({ [dim.key]: parseInt(e.target.value) / 10 })}
             className="w-full h-2 bg-brand-beige rounded-lg appearance-none cursor-pointer accent-brand-accent"
           />
-          <div className="flex justify-between text-xs text-brand-charcoal/30">
-            <span>{dim.min} cm</span>
-            <span>{dim.max} cm</span>
+          <div className="flex justify-between text-xs text-brand-charcoal/30 tabular-nums">
+            <span>{dim.min * 10} mm</span>
+            <span>{dim.max * 10} mm</span>
           </div>
         </div>
       ))}
@@ -514,7 +514,7 @@ function BaseStep() {
                   {base.name}
                 </h4>
                 {base.height > 0 && (
-                  <p className="text-xs text-brand-charcoal/50">Înălțime: {base.height} cm</p>
+                  <p className="text-xs text-brand-charcoal/50">Înălțime: {base.height * 10} mm</p>
                 )}
               </div>
               <div className="text-right">
@@ -660,8 +660,8 @@ function SummaryStep() {
         </div>
         <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
           <span className="text-sm text-brand-charcoal/60">Dimensiuni</span>
-          <span className="text-sm font-semibold">
-            {config.dimensions.width} × {config.dimensions.height} × {config.dimensions.depth} cm
+          <span className="text-sm font-semibold tabular-nums">
+            {config.dimensions.width * 10} × {config.dimensions.height * 10} × {config.dimensions.depth * 10} mm
           </span>
         </div>
         <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
@@ -687,30 +687,30 @@ function SummaryStep() {
       <div className="border-t border-brand-beige/50 pt-4 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-brand-charcoal/50">Corp mobilier</span>
-          <span>{formatPrice(price.bodyPrice)}</span>
+          <span className="tabular-nums">{formatPrice(price.bodyPrice)}</span>
         </div>
         {price.frontPrice > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-brand-charcoal/50">Fronturi</span>
-            <span>{formatPrice(price.frontPrice)}</span>
+            <span className="tabular-nums">{formatPrice(price.frontPrice)}</span>
           </div>
         )}
         {price.basePrice > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-brand-charcoal/50">Bază</span>
-            <span>{formatPrice(price.basePrice)}</span>
+            <span className="tabular-nums">{formatPrice(price.basePrice)}</span>
           </div>
         )}
         {price.backPanelPrice > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-brand-charcoal/50">Panou spate</span>
-            <span>{formatPrice(price.backPanelPrice)}</span>
+            <span className="tabular-nums">{formatPrice(price.backPanelPrice)}</span>
           </div>
         )}
         {price.additionalOptionsPrice > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-brand-charcoal/50">Opțiuni extra</span>
-            <span>{formatPrice(price.additionalOptionsPrice)}</span>
+            <span className="tabular-nums">{formatPrice(price.additionalOptionsPrice)}</span>
           </div>
         )}
 
@@ -719,18 +719,18 @@ function SummaryStep() {
             <div className="border-t border-dashed border-brand-beige/30 my-2" />
             <div className="flex justify-between text-sm">
               <span className="text-brand-charcoal/50">Subtotal</span>
-              <span>{formatPrice(price.totalBeforeDiscount)}</span>
+              <span className="tabular-nums">{formatPrice(price.totalBeforeDiscount)}</span>
             </div>
             <div className="flex justify-between text-sm text-brand-sage">
               <span>Discount volum</span>
-              <span>-{formatPrice(price.discount)}</span>
+              <span className="tabular-nums">-{formatPrice(price.discount)}</span>
             </div>
           </>
         )}
 
         <div className="border-t border-brand-beige/50 pt-3 mt-2 flex justify-between items-center">
           <span className="text-lg font-bold">Total</span>
-          <span className="text-2xl font-bold text-brand-accent">{formatPrice(price.total)}</span>
+          <span className="text-[28px] font-bold text-brand-accent leading-none tabular-nums">{formatPrice(price.total)}</span>
         </div>
       </div>
 
@@ -738,15 +738,15 @@ function SummaryStep() {
       <div className="bg-brand-warm/60 rounded-lg p-3 space-y-1">
         <div className="flex justify-between text-sm">
           <span className="text-brand-charcoal/50">Preț fără TVA</span>
-          <span className="font-medium">{formatPrice(price.total)}</span>
+          <span className="font-medium tabular-nums">{formatPrice(price.total)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-brand-charcoal/50">TVA (19%)</span>
-          <span className="font-medium">{formatPrice(Math.round(price.total * 0.19))}</span>
+          <span className="font-medium tabular-nums">{formatPrice(Math.round(price.total * 0.19))}</span>
         </div>
         <div className="flex justify-between text-sm font-bold text-brand-dark border-t border-brand-accent/20 pt-1 mt-1">
           <span>Total cu TVA</span>
-          <span className="text-brand-accent">{formatPrice(Math.round(price.total * 1.19))}</span>
+          <span className="text-brand-accent tabular-nums">{formatPrice(Math.round(price.total * 1.19))}</span>
         </div>
       </div>
 
@@ -810,69 +810,84 @@ export default function ConfiguratorPanel() {
   }
 
   return (
-    <div className="configurator-panel flex flex-col h-full">
-      {/* Step indicator */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2">
-          {steps.map((step, i) => (
-            <button
-              key={step}
-              onClick={() => currentStep !== 'category' && i <= currentStepIndex && goToStep(step)}
-              className={`step-dot ${
-                i === currentStepIndex ? 'active' : i < currentStepIndex ? 'completed' : 'pending'
-              }`}
-              title={stepLabels[step].title}
-            />
-          ))}
+    <div className="configurator-panel flex flex-col h-full min-h-0">
+      {/* ── Horizontal step progress ── */}
+      <div className="shrink-0 pt-4 lg:pt-[30px] mb-2">
+        <div className="flex items-center">
+          {steps.map((step, i) => {
+            const meta = stepLabels[step];
+            const isActive = i === currentStepIndex;
+            const isDone = i < currentStepIndex;
+            return (
+              <React.Fragment key={step}>
+                {i > 0 && (
+                  <div className={`flex-1 h-px transition-colors duration-300 ${
+                    i <= currentStepIndex ? 'bg-brand-accent/25' : 'bg-brand-beige/25'
+                  }`} />
+                )}
+                <button
+                  onClick={() => currentStep !== 'category' && i <= currentStepIndex && goToStep(step)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] font-medium transition-all duration-150 ${
+                    isActive
+                      ? 'text-brand-accent'
+                      : isDone
+                        ? 'text-brand-charcoal/60 hover:text-brand-charcoal/80'
+                        : 'text-brand-charcoal/35 hover:text-brand-charcoal/50'
+                  }`}
+                >
+                  <span className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold transition-all duration-200 ${
+                    isActive
+                      ? 'bg-brand-dark text-white shadow-sm'
+                      : isDone
+                        ? 'bg-brand-dark text-white'
+                        : 'bg-brand-beige/25 text-brand-charcoal/35'
+                  }`}>
+                    {isDone ? <Check className="w-3 h-3" /> : i + 1}
+                  </span>
+                  <span className="text-[11px] hidden sm:inline">{meta.title}</span>
+                </button>
+              </React.Fragment>
+            );
+          })}
+
+          <div className="flex-1" />
+          <button
+            onClick={resetConfig}
+            className="text-brand-charcoal/30 hover:text-brand-charcoal/60 hover:bg-[#F5F3EE] transition-all duration-200 p-1.5 rounded-lg active:scale-[0.95]"
+            title="Resetează"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
         </div>
-        <button
-          onClick={resetConfig}
-          className="text-xs text-brand-charcoal/30 hover:text-brand-charcoal/60 flex items-center space-x-1"
-          title="Resetează"
-        >
-          <RotateCcw className="w-3 h-3" />
-          <span>Reset</span>
-        </button>
       </div>
 
-      {/* Step label */}
-      <div className="flex items-center space-x-2 mb-4 text-xs text-brand-charcoal/30 uppercase tracking-wider">
-        {stepLabels[currentStep].icon}
-        <span>
-          Pas {currentStepIndex + 1} din {steps.length}: {stepLabels[currentStep].title}
-        </span>
-      </div>
-
-      {/* Step content */}
-      <div className="flex-1 overflow-y-auto mb-6 -mx-1 px-1">
+      {/* ── Step content (scrollable) ── */}
+      <div className="flex-1 overflow-y-auto min-h-0 pb-16 lg:pb-0 -mx-1 px-1">
         {renderStep()}
       </div>
 
-      {/* Price bar + Navigation */}
+      {/* ── Footer: price + nav ── */}
       {currentStep !== 'category' && (
-        <div className="border-t border-brand-beige/30 pt-4 space-y-3">
-          {/* Price */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-brand-charcoal/50">Preț estimat</span>
-            <span className="text-xl font-bold text-brand-accent">{formatPrice(price.total)}</span>
-          </div>
-
-          {/* Nav buttons */}
-          <div className="flex items-center space-x-3">
+        <div className="shrink-0 pt-2.5 mt-1 border-t border-brand-beige/15 lg:relative fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md lg:bg-transparent lg:backdrop-blur-none px-4 pb-[env(safe-area-inset-bottom)] lg:px-0 lg:pb-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] lg:shadow-none">
+          <div className="flex items-center gap-2 pb-1.5">
             <button
               onClick={prevStep}
-              className="flex-1 py-3 rounded-lg border border-brand-beige/50 text-brand-charcoal/60 font-medium text-sm hover:bg-brand-warm transition-colors flex items-center justify-center space-x-1"
+              className="py-2.5 px-4 rounded-xl border border-brand-beige/30 bg-white text-brand-charcoal/60 text-[13px] font-medium hover:bg-[#F5F3EE] hover:border-brand-beige/50 hover:shadow-sm transition-all duration-200 flex items-center gap-1.5 active:scale-[0.98]"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Înapoi</span>
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Înapoi
             </button>
+            <div className="flex-1 text-right">
+              <span className="text-[10px] text-brand-charcoal/40 block leading-none">estimat</span>
+              <span className="text-[16px] font-bold text-brand-accent tabular-nums leading-tight">{formatPrice(price.total)}</span>
+            </div>
             {!isLast && (
               <button
                 onClick={nextStep}
-                className="flex-1 btn-primary justify-center text-sm"
+                className="py-2.5 px-6 rounded-xl bg-brand-dark hover:bg-brand-charcoal text-white text-[13px] font-semibold transition-all duration-200 flex items-center gap-1.5 shadow-md hover:shadow-lg active:scale-[0.98]"
               >
-                <span>Continuă</span>
-                <ArrowRight className="w-4 h-4 ml-1" />
+                Continuă
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
