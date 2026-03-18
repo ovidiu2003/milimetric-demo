@@ -144,7 +144,7 @@ function cloneTextureWithRotation(
 export default function LivingUnitModel() {
   const groupRef = useRef<THREE.Group>(null);
   const config = useLivingUnitStore((s) => s.config);
-  useTextures(); // ensure dynamic materials are loaded & trigger re-render
+  const { textures: loadedTextures } = useTextures(); // triggers re-render when textures load
 
   const bodyMaterial = getMaterialById(config.bodyMaterialId);
   const frontMaterial = getMaterialById(config.frontMaterialId);
@@ -162,7 +162,8 @@ export default function LivingUnitModel() {
     texture.magFilter = THREE.LinearFilter;
     texture.repeat.set(1, 1);
     return texture;
-  }, [bodyMaterial?.textureUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bodyMaterial?.textureUrl, loadedTextures]);
   const frontTexture = useMemo(() => {
     if (!frontMaterial?.textureUrl) return null;
     const texture = new THREE.TextureLoader().load(frontMaterial.textureUrl);
@@ -174,7 +175,8 @@ export default function LivingUnitModel() {
     texture.magFilter = THREE.LinearFilter;
     texture.repeat.set(1, 1);
     return texture;
-  }, [frontMaterial?.textureUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frontMaterial?.textureUrl, loadedTextures]);
   const horizontalBodyTexture = useMemo(
     () => cloneTextureWithRotation(bodyTexture, Math.PI / 2),
     [bodyTexture]

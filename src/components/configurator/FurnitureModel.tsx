@@ -133,7 +133,7 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
   const config = useConfiguratorStore((s) => s.config);
   const selectedCompartment = useConfiguratorStore((s) => s.selectedCompartment);
   const previewMode = useConfiguratorStore((s) => s.previewMode);
-  useTextures(); // ensure dynamic materials are loaded & trigger re-render
+  const { textures: loadedTextures } = useTextures(); // triggers re-render when textures load
 
   const bodyMaterial = getMaterialById(config.bodyMaterialId);
   const frontMaterial = getMaterialById(config.frontMaterialId);
@@ -151,7 +151,8 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
     texture.magFilter = THREE.LinearFilter;
     texture.repeat.set(1, 1);
     return texture;
-  }, [bodyMaterial?.textureUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bodyMaterial?.textureUrl, loadedTextures]);
   const frontTexture = useMemo(() => {
     if (!frontMaterial?.textureUrl) return null;
     const texture = new THREE.TextureLoader().load(frontMaterial.textureUrl);
@@ -163,7 +164,8 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
     texture.magFilter = THREE.LinearFilter;
     texture.repeat.set(1, 1);
     return texture;
-  }, [frontMaterial?.textureUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frontMaterial?.textureUrl, loadedTextures]);
   const bodyMatColor = bodyTexture ? '#ffffff' : bodyColor;
   const frontMatColor = frontTexture ? '#ffffff' : frontColor;
   const unifiedFrontTexture = frontTexture || bodyTexture;
