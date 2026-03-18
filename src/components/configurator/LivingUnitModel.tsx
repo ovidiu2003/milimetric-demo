@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import { useLivingUnitStore } from '@/store/livingUnitStore';
 import { getMaterialById } from '@/data/materials';
 import { useTextures } from '@/hooks/useTextures';
-import { useTextureStore } from '@/hooks/useTextures';
 
 function HoverAnimatedFront({
   children,
@@ -145,8 +144,7 @@ function cloneTextureWithRotation(
 export default function LivingUnitModel() {
   const groupRef = useRef<THREE.Group>(null);
   const config = useLivingUnitStore((s) => s.config);
-  useTextures(); // trigger texture loading
-  const textureVersion = useTextureStore((s) => s.version); // re-render when textures load
+  useTextures(); // ensure materials registry is referenced
 
   const bodyMaterial = getMaterialById(config.bodyMaterialId);
   const frontMaterial = getMaterialById(config.frontMaterialId);
@@ -164,8 +162,7 @@ export default function LivingUnitModel() {
     texture.magFilter = THREE.LinearFilter;
     texture.repeat.set(1, 1);
     return texture;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bodyMaterial?.textureUrl, textureVersion]);
+  }, [bodyMaterial?.textureUrl]);
   const frontTexture = useMemo(() => {
     if (!frontMaterial?.textureUrl) return null;
     const texture = new THREE.TextureLoader().load(frontMaterial.textureUrl);
@@ -177,8 +174,7 @@ export default function LivingUnitModel() {
     texture.magFilter = THREE.LinearFilter;
     texture.repeat.set(1, 1);
     return texture;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frontMaterial?.textureUrl, textureVersion]);
+  }, [frontMaterial?.textureUrl]);
   const horizontalBodyTexture = useMemo(
     () => cloneTextureWithRotation(bodyTexture, Math.PI / 2),
     [bodyTexture]

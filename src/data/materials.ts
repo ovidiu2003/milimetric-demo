@@ -1,4 +1,5 @@
 import { Material, MaterialType } from '@/types';
+import textureManifest from '@/data/texture-manifest.json';
 
 // Static fallback material (used before dynamic textures load)
 export const materials: Material[] = [];
@@ -10,14 +11,6 @@ export const materialTypes: { id: MaterialType; name: string; description: strin
     description: 'Texturi incarcate automat din folderul /public/textures.',
   },
 ];
-
-// ─── Dynamic texture registry ───────────────────────────────────────────────
-// Populated at runtime by useTextures() hook from /api/textures
-let dynamicMaterials: Material[] = [];
-
-export function setDynamicMaterials(mats: Material[]): void {
-  dynamicMaterials = mats;
-}
 
 /**
  * Parse an EGGER-style filename into a Material object.
@@ -42,6 +35,17 @@ export function parseMaterialFromFilename(filename: string): Material {
     description: withoutExt,
     category: 'both',
   };
+}
+
+// ─── Pre-populated at module load from static manifest (no async needed) ────
+let dynamicMaterials: Material[] = (textureManifest as string[]).map(parseMaterialFromFilename);
+
+export function setDynamicMaterials(mats: Material[]): void {
+  dynamicMaterials = mats;
+}
+
+export function getDynamicMaterials(): Material[] {
+  return dynamicMaterials;
 }
 
 export function getMaterialById(id: string): Material | undefined {
