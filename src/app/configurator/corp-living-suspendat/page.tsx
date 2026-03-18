@@ -84,18 +84,18 @@ function Scene({ isMobile }: { isMobile: boolean }) {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(4.5, 4.5);
-    texture.anisotropy = 8;
+    texture.anisotropy = isMobile ? 2 : 8;
     return texture;
-  }, []);
+  }, [isMobile]);
   const wallTexture = useMemo(() => {
     const texture = new THREE.TextureLoader().load('/textures/textura_perete.jpg');
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = THREE.ClampToEdgeWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.repeat.set(1, 1);
-    texture.anisotropy = 8;
+    texture.anisotropy = isMobile ? 2 : 8;
     return texture;
-  }, []);
+  }, [isMobile]);
 
   // Camera target: center of the unit vertically
   const S = 0.01;
@@ -124,7 +124,7 @@ function Scene({ isMobile }: { isMobile: boolean }) {
         position={[4, 9, 6]}
         intensity={0.78}
         castShadow
-        shadow-mapSize={[4096, 4096]}
+        shadow-mapSize={isMobile ? [1024, 1024] : [4096, 4096]}
         shadow-camera-far={20}
         shadow-camera-left={-3}
         shadow-camera-right={3}
@@ -144,8 +144,8 @@ function Scene({ isMobile }: { isMobile: boolean }) {
         penumbra={0.6}
         intensity={0.62}
         distance={9}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
+        castShadow={!isMobile}
+        shadow-mapSize={isMobile ? [512, 512] : [2048, 2048]}
         shadow-bias={-0.0002}
         shadow-normalBias={0.01}
         color="#ffffff"
@@ -158,8 +158,8 @@ function Scene({ isMobile }: { isMobile: boolean }) {
         penumbra={0.55}
         intensity={0.36}
         distance={7}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
+        castShadow={!isMobile}
+        shadow-mapSize={isMobile ? [512, 512] : [2048, 2048]}
         shadow-bias={-0.0002}
         shadow-normalBias={0.01}
         color="#ffffff"

@@ -22,7 +22,7 @@ function cloneTextureWithRotation(
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = 8;
+  texture.anisotropy = 4;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.center.set(0.5, 0.5);
@@ -146,7 +146,7 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.anisotropy = 8;
+    texture.anisotropy = 4;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.repeat.set(1, 1);
@@ -158,7 +158,7 @@ export default function FurnitureModel({ onClick }: FurnitureModelProps) {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.anisotropy = 8;
+    texture.anisotropy = 4;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.repeat.set(1, 1);

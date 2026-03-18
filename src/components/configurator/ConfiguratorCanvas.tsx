@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useMemo } from 'react';
+import React, { Suspense, useMemo, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, PerspectiveCamera, Html, Line } from '@react-three/drei';
 import { EffectComposer, SSAO, SMAA } from '@react-three/postprocessing';
@@ -71,7 +71,7 @@ function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heig
   );
 }
 
-function Scene() {
+function Scene({ isMobile }: { isMobile: boolean }) {
   const selectCompartment = useConfiguratorStore((s) => s.selectCompartment);
   const config = useConfiguratorStore((s) => s.config);
   const floorTexture = useMemo(() => {
@@ -80,18 +80,18 @@ function Scene() {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(4, 4);
-    texture.anisotropy = 8;
+    texture.anisotropy = isMobile ? 2 : 8;
     return texture;
-  }, []);
+  }, [isMobile]);
   const wallTexture = useMemo(() => {
     const texture = new THREE.TextureLoader().load('/textures/textura_perete.jpg');
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = THREE.ClampToEdgeWrapping;
     texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.repeat.set(1, 1);
-    texture.anisotropy = 8;
+    texture.anisotropy = isMobile ? 2 : 8;
     return texture;
-  }, []);
+  }, [isMobile]);
 
   // Center furniture vertically based on its height
   const h = config.dimensions.height * 0.01;
@@ -114,7 +114,7 @@ function Scene() {
         position={[4, 6, 5]}
         intensity={0.78}
         castShadow
-        shadow-mapSize={[4096, 4096]}
+        shadow-mapSize={isMobile ? [1024, 1024] : [4096, 4096]}
         shadow-camera-far={20}
         shadow-camera-left={-3}
         shadow-camera-right={3}
@@ -132,8 +132,8 @@ function Scene() {
         penumbra={0.6}
         intensity={0.62}
         distance={9}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
+        castShadow={!isMobile}
+        shadow-mapSize={isMobile ? [512, 512] : [2048, 2048]}
         shadow-bias={-0.0002}
         shadow-normalBias={0.01}
         color="#ffffff"
@@ -145,8 +145,8 @@ function Scene() {
         penumbra={0.55}
         intensity={0.36}
         distance={7}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
+        castShadow={!isMobile}
+        shadow-mapSize={isMobile ? [512, 512] : [2048, 2048]}
         shadow-bias={-0.0002}
         shadow-normalBias={0.01}
         color="#ffffff"
@@ -232,22 +232,24 @@ function Scene() {
       />
 
       {/* Post-processing: edge & corner ambient occlusion + AA */}
-      <EffectComposer multisampling={8}>
-        <SSAO
-          blendFunction={BlendFunction.MULTIPLY}
-          samples={32}
-          radius={0.03}
-          intensity={1}
-          luminanceInfluence={0.88}
-          bias={0.03}
-          resolutionScale={0.75}
-          worldDistanceThreshold={1}
-          worldDistanceFalloff={0.1}
-          worldProximityThreshold={0.0}
-          worldProximityFalloff={0.0}
-        />
-        <SMAA />
-      </EffectComposer>
+      {!isMobile && (
+        <EffectComposer multisampling={8}>
+          <SSAO
+            blendFunction={BlendFunction.MULTIPLY}
+            samples={32}
+            radius={0.03}
+            intensity={1}
+            luminanceInfluence={0.88}
+            bias={0.03}
+            resolutionScale={0.75}
+            worldDistanceThreshold={1}
+            worldDistanceFalloff={0.1}
+            worldProximityThreshold={0.0}
+            worldProximityFalloff={0.0}
+          />
+          <SMAA />
+        </EffectComposer>
+      )}
     </>
   );
 }
@@ -268,6 +270,16 @@ export default function ConfiguratorCanvas() {
   const previewMode = useConfiguratorStore((s) => s.previewMode);
   const togglePreviewMode = useConfiguratorStore((s) => s.togglePreviewMode);
   const { width, height, depth } = config.dimensions;
+
+  // Detect mobile via media query
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 1023px)');
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   return (
     <div className="relative w-full h-full min-h-[400px] bg-gradient-to-b from-gray-50 to-gray-100 rounded-2xl overflow-hidden">
@@ -311,8 +323,8 @@ export default function ConfiguratorCanvas() {
       <Suspense fallback={<LoadingFallback />}>
         <Canvas
           shadows
-          dpr={[1, 2]}
-          gl={{ antialias: true }}
+          dpr={isMobile ? [1, 1.5] : [1, 2]}
+          gl={{ antialias: !isMobile }}
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.NoToneMapping;
             gl.toneMappingExposure = 0.74;
@@ -321,7 +333,7 @@ export default function ConfiguratorCanvas() {
           }}
           className="configurator-canvas"
         >
-          <Scene />
+          <Scene isMobile={isMobile} />
         </Canvas>
       </Suspense>
 
