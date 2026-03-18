@@ -195,8 +195,9 @@ export default function LivingUnitModel() {
   // Scale: cm → Three.js meters
   const S = 0.01;
   const T = 1.8 * S; // panel thickness (1.8 cm)
-  const FRONT_GAP = 0.3 * S; // front panel overhang
-  const FRONT_JOINT_GAP = 0.3 * S; // small reveal between adjacent fronts
+  const FRONT_GAP = 1.0 * S; // front panel overhang
+  const FRONT_JOINT_GAP = 1.5 * S; // small reveal between adjacent fronts
+  const FRONT_EDGE = 0.3 * S; // thin dark edge around front panels
   const TOP_FRONT_OVERHANG = 1.0 * S; // top panel extends forward to cover front edge
 
   const {
@@ -323,6 +324,11 @@ export default function LivingUnitModel() {
         return (
           <HoverAnimatedFront key={`cf-${i}`} mode="drawer" panelWidth={frontW}>
             <group position={[x, comodaMidY, D / 2 + FRONT_GAP]}>
+              {/* Shadow edge behind front — creates visible border */}
+              <mesh position={[0, 0, -FRONT_EDGE / 2]}>
+                <boxGeometry args={[frontW + FRONT_EDGE, frontH + FRONT_EDGE, FRONT_EDGE]} />
+                <meshStandardMaterial color="#1a1a1a" roughness={0.9} metalness={0} />
+              </mesh>
               {/* Panel */}
               <mesh castShadow>
                 <boxGeometry args={[frontW, frontH, T / 2]} />
@@ -427,9 +433,14 @@ export default function LivingUnitModel() {
         hingeSide={mirrored ? 1 : -1}
         hingePosition={[mirrored ? dX2 : dX1, towerMidY, D / 2 + FRONT_GAP]}
       >
+        {/* Shadow edge behind door — creates visible border */}
+        <mesh position={[0, 0, -FRONT_EDGE / 2]}>
+          <boxGeometry args={[DW - FRONT_JOINT_GAP + FRONT_EDGE, TH + FRONT_EDGE, FRONT_EDGE]} />
+          <meshStandardMaterial color="#1a1a1a" roughness={0.9} metalness={0} />
+        </mesh>
         {/* Door panel — covers full tower height including bottom */}
         <mesh castShadow>
-          <boxGeometry args={[DW, TH, T / 2]} />
+          <boxGeometry args={[DW - FRONT_JOINT_GAP, TH, T / 2]} />
           <meshStandardMaterial
             color={unifiedFrontColor}
             map={verticalFrontTexture || undefined}

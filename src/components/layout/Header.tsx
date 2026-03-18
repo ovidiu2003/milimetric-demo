@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Phone, Mail } from 'lucide-react';
+import { Menu, X, Phone, Mail, ArrowRight } from 'lucide-react';
 
 const navigation = [
   { name: 'Acasă', href: '/' },
@@ -15,42 +15,13 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
-  const isHomepage = pathname === '/';
-  const [heroMode, setHeroMode] = useState(isHomepage);
-  const heroEndRef = useRef(0);
-
-  // Sync heroMode immediately on route change (before paint)
-  const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
-  useIsomorphicLayoutEffect(() => {
-    if (!isHomepage) { setHeroMode(false); return; }
-    // On homepage, compute hero boundary and set immediately
-    const heroSpace = document.querySelector('.hero-scroll-space') as HTMLElement | null;
-    heroEndRef.current = heroSpace ? heroSpace.offsetTop + heroSpace.offsetHeight : window.innerHeight * 7;
-    setHeroMode(window.scrollY < heroEndRef.current);
-    setScrolled(window.scrollY > 20);
-  }, [isHomepage]);
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
-      if (isHomepage) {
-        // Recalc hero boundary lazily (in case layout shifted)
-        if (!heroEndRef.current) {
-          const heroSpace = document.querySelector('.hero-scroll-space') as HTMLElement | null;
-          heroEndRef.current = heroSpace ? heroSpace.offsetTop + heroSpace.offsetHeight : window.innerHeight * 7;
-        }
-        setHeroMode(window.scrollY < heroEndRef.current);
-      } else {
-        setHeroMode(false);
-      }
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isHomepage]);
-
-  // Remove the CSS-only homepage class once React has hydrated and taken over
-  useIsomorphicLayoutEffect(() => {
-    document.documentElement.classList.remove('is-homepage');
   }, []);
 
   const isActive = (href: string) => {
@@ -60,103 +31,122 @@ export default function Header() {
 
   return (
     <>
-      {/* Top Bar — hidden in hero mode */}
-      <div className={`header-topbar bg-brand-dark text-brand-cream/70 text-xs tracking-wide py-2.5 hidden ${heroMode ? '' : 'md:block'}`}>
-          <div className="section-container flex items-center justify-between">
-            <div className="flex items-center space-x-8">
-              <a href="tel:+40759203138" className="flex items-center space-x-2 hover:text-brand-cream transition-colors duration-300">
-                <Phone className="w-3 h-3" />
-                <span>+40 759 203 138</span>
-              </a>
-              <a href="mailto:comenzi@milimetric.ro" className="flex items-center space-x-2 hover:text-brand-cream transition-colors duration-300">
-                <Mail className="w-3 h-3" />
-                <span>comenzi@milimetric.ro</span>
-              </a>
-            </div>
-            <span className="text-brand-cream/40 italic font-display tracking-display">
-              Nu ne grăbim. Facem lucrurile bine.
-            </span>
+      {/* Top Bar */}
+      <div className="bg-brand-dark text-brand-cream/70 text-xs tracking-wide py-2 hidden md:block">
+        <div className="section-container flex items-center justify-between">
+          <div className="flex items-center space-x-8">
+            <a href="tel:+40759203138" className="flex items-center space-x-2 hover:text-brand-cream transition-colors duration-300">
+              <Phone className="w-3 h-3" />
+              <span>+40 759 203 138</span>
+            </a>
+            <a href="mailto:comenzi@milimetric.ro" className="flex items-center space-x-2 hover:text-brand-cream transition-colors duration-300">
+              <Mail className="w-3 h-3" />
+              <span>comenzi@milimetric.ro</span>
+            </a>
           </div>
+          <span className="text-brand-cream/35 italic font-display text-[0.8rem] tracking-display">
+            precizie pe gustul tău
+          </span>
         </div>
+      </div>
 
-      {/* Main Header */}
+      {/* ═══ Modern Navbar ═══ */}
       <header
-        className={`header-main sticky top-0 z-50 transition-all duration-500 ${
-          heroMode
-            ? 'bg-transparent'
-            : scrolled
-              ? 'bg-brand-cream/95 backdrop-blur-md shadow-sm'
-              : 'bg-brand-cream'
+        className={`nav-header sticky top-0 z-50 ${
+          scrolled ? 'nav-header--scrolled' : ''
         }`}
       >
         <div className="section-container">
-          <div className="flex items-center justify-between h-20 md:h-24">
+          <div className="flex items-center justify-between h-[4.2rem] md:h-20">
             {/* Logo */}
-            <Link href="/" className="flex items-center group">
-              <span className={`header-logo font-display text-2xl md:text-3xl font-light tracking-display transition-colors duration-500 ${heroMode ? 'text-white hero-mode-text' : 'text-brand-dark'}`}>
+            <Link href="/" className="flex items-baseline gap-0.5 group relative z-10">
+              <span className="font-display text-[1.75rem] md:text-[2.1rem] font-semibold tracking-[-0.01em] text-brand-dark transition-colors duration-300 group-hover:text-brand-accent">
                 milimetric
               </span>
+              <span className="text-[0.7rem] md:text-[0.8rem] font-medium text-brand-accent tracking-wide">.ro</span>
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center space-x-1">
-              {navigation.map((item) => (
-                <div key={item.name} className="relative group">
+            <div className="hidden lg:flex items-center gap-3">
+              <nav className="nav-pill-group flex items-center gap-1 p-1.5 rounded-full">
+                {navigation.map((item) => (
                   <Link
+                    key={item.name}
                     href={item.href}
-                    className={`header-nav-link px-4 py-2 text-sm tracking-wide transition-colors duration-300 ${
-                      heroMode
-                        ? isActive(item.href)
-                          ? 'text-[#EDD090] hero-mode-text'
-                          : 'text-white/90 hover:text-[#EDD090] hero-mode-text'
-                        : isActive(item.href)
-                          ? 'text-brand-accent'
-                          : 'text-brand-charcoal hover:text-brand-accent'
+                    className={`nav-pill relative px-5 py-2.5 text-[0.9rem] tracking-[0.01em] font-medium rounded-full transition-all duration-300 ${
+                      isActive(item.href)
+                        ? 'text-brand-accent'
+                        : 'text-brand-dark/55 hover:text-brand-dark'
                     }`}
                   >
-                    {item.name}
+                    {isActive(item.href) && (
+                      <span className="nav-pill-bg" />
+                    )}
+                    <span className="relative z-[1]">{item.name}</span>
                   </Link>
-                </div>
-              ))}
-            </nav>
+                ))}
+              </nav>
 
-            {/* CTA + Mobile Menu */}
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className={`header-mobile-btn lg:hidden p-2 transition-colors duration-300 ${heroMode ? 'text-white hover:text-[#EDD090]' : 'text-brand-dark hover:text-brand-accent'}`}
+              {/* CTA */}
+              <Link
+                href="/configurator/corp-living-suspendat"
+                className="nav-cta ml-2"
               >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+                <span>Configurator</span>
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+              </Link>
             </div>
+
+            {/* Mobile Menu Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={`lg:hidden relative z-10 w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-300 ${
+                mobileMenuOpen
+                  ? 'bg-brand-dark/5 text-brand-accent'
+                  : 'text-brand-dark/70 hover:bg-brand-dark/[0.04]'
+              }`}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
 
-        {/* Subtle border — hidden in hero mode */}
-        <div className={`header-border h-px bg-brand-beige/40 ${heroMode ? 'hidden' : ''}`} />
-
         {/* Mobile Menu */}
         <div
-          className={`lg:hidden absolute top-full left-0 right-0 bg-brand-cream border-b border-brand-beige/40 transition-all duration-300 ${
-            mobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+          className={`lg:hidden absolute top-full left-0 right-0 nav-mobile-menu transition-all duration-300 ${
+            mobileMenuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
           }`}
         >
-          <div className="section-container py-6 space-y-1">
-            {navigation.map((item) => (
-              <div key={item.name}>
+          <div className="section-container py-4">
+            <div className="space-y-1">
+              {navigation.map((item) => (
                 <Link
+                  key={item.name}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-4 py-3 text-base tracking-wide transition-colors duration-200 ${
+                  className={`flex items-center gap-3 px-5 py-3.5 text-[0.95rem] font-medium rounded-xl transition-all duration-200 ${
                     isActive(item.href)
-                      ? 'text-brand-accent'
-                      : 'text-brand-charcoal hover:text-brand-accent'
+                      ? 'text-brand-accent bg-brand-accent/[0.06]'
+                      : 'text-brand-dark/60 hover:text-brand-dark hover:bg-brand-dark/[0.03]'
                   }`}
                 >
+                  {isActive(item.href) && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-accent" />
+                  )}
                   {item.name}
                 </Link>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className="pt-4 mt-3 border-t border-brand-dark/[0.06]">
+              <Link
+                href="/configurator/corp-living-suspendat"
+                onClick={() => setMobileMenuOpen(false)}
+                className="nav-cta w-full justify-center text-[0.9rem]"
+              >
+                <span>Deschide Configuratorul</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </header>

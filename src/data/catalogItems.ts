@@ -7,8 +7,8 @@ export const catalogItems: CatalogItem[] = [
     category: 'suspendat',
     description:
       'Corp modular suspendat pentru living: comodă orizontală cu sertare, coloană raft deschis cu cuburi și dulap vertical închis. 4 parametri configurabili + oglindire.',
-    imageUrl: '/images/catalog/sus-004.jpg',
-    images: ['/images/catalog/sus-004.jpg'],
+    imageUrl: '/img_corpuri/comoda_living_suspendat.png',
+    images: ['/img_corpuri/comoda_living_suspendat.png'],
     basePrice: 3200,
     dimensions: { width: 300, height: 260, depth: 40 },
     material: 'Textura Personalizata',

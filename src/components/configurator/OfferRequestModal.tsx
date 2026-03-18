@@ -68,7 +68,7 @@ export default function OfferRequestModal({
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-brand-beige/50 p-5">
+      <div className="relative rounded-2xl bg-white shadow-2xl border border-brand-beige/50 p-5 w-[92vw] max-w-[80vw] max-h-[85vh] lg:max-h-[60vh] overflow-y-auto">
         <h3 className="text-lg font-bold text-brand-dark">{title}</h3>
         <p className="text-sm text-brand-charcoal/50 mt-1">
           Completeaza datele, iar configuratia in PDF va fi trimisa automat la comenzi@milimetric.ro.

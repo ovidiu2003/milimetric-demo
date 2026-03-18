@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useMemo } from 'react';
+import React, { Suspense, useMemo, useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, PerspectiveCamera, Html, Line } from '@react-three/drei';
@@ -8,6 +8,7 @@ import { EffectComposer, SSAO, SMAA } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
 import Link from 'next/link';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import LivingUnitPanel from '@/components/configurator/LivingUnitPanel';
 import { useLivingUnitStore } from '@/store/livingUnitStore';
 
@@ -73,7 +74,7 @@ function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heig
   );
 }
 
-function Scene() {
+function Scene({ isMobile }: { isMobile: boolean }) {
   const config = useLivingUnitStore((s) => s.config);
   const floorTexture = useMemo(() => {
     const texture = new THREE.TextureLoader().load('/textures/EGGER_H1367_ST40_Light Natural Casella Oak.jpg');
@@ -253,32 +254,35 @@ function Scene() {
       />
 
       {/* Post-processing: edge & corner ambient occlusion + AA */}
-      <EffectComposer multisampling={0}>
-        <SSAO
-          blendFunction={BlendFunction.MULTIPLY}
-          samples={32}
-          radius={0.03}
-          intensity={7}
-          luminanceInfluence={0.88}
-          bias={0.03}
-          resolutionScale={0.75}
-          worldDistanceThreshold={1}
-          worldDistanceFalloff={0.1}
-          worldProximityThreshold={0.0}
-          worldProximityFalloff={0.0}
-        />
-        <SMAA />
-      </EffectComposer>
+      {!isMobile && (
+        <EffectComposer multisampling={0}>
+          <SSAO
+            blendFunction={BlendFunction.MULTIPLY}
+            samples={32}
+            radius={0.03}
+            intensity={7}
+            luminanceInfluence={0.88}
+            bias={0.03}
+            resolutionScale={0.75}
+            worldDistanceThreshold={1}
+            worldDistanceFalloff={0.1}
+            worldProximityThreshold={0.0}
+            worldProximityFalloff={0.0}
+          />
+          <SMAA />
+        </EffectComposer>
+      )}
     </>
   );
 }
 
 function LoadingFallback() {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-brand-warm">
+    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#f2f0ec] via-[#ece9e4] to-[#e6e3dd]">
       <div className="text-center">
-        <div className="w-12 h-12 border-4 border-brand-accent/30 border-t-brand-accent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-brand-charcoal/50 text-sm">Se încarcă modelul 3D...</p>
+        <div className="w-12 h-12 border-[3px] border-brand-beige/30 border-t-brand-accent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-brand-charcoal/40 text-[12px] tracking-wide font-medium">Se încărcă modelul 3D...</p>
+        <p className="text-brand-charcoal/25 text-[10px] mt-1">Pregătim scena pentru tine</p>
       </div>
     </div>
   );
@@ -286,65 +290,146 @@ function LoadingFallback() {
 
 export default function CorpLivingSuspendatPage() {
   const config = useLivingUnitStore((s) => s.config);
+  const [isCanvasExpanded, setIsCanvasExpanded] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState('100dvh');
+
+  // Detect mobile via media query
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 1023px)');
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  // Prevent outer page scroll & measure available space below the header
+  useEffect(() => {
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+
+    const measure = () => {
+      if (containerRef.current) {
+        const top = containerRef.current.getBoundingClientRect().top;
+        setContainerHeight(`calc(100dvh - ${top}px)`);
+      }
+    };
+    measure();
+    window.addEventListener('resize', measure);
+
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  const toggleExpand = useCallback(() => setIsCanvasExpanded((v) => !v), []);
 
   return (
-    <div className="h-[calc(100vh-80px)] flex flex-col lg:flex-row overflow-hidden bg-brand-warm">
-      {/* 3D Canvas — Left */}
-      <div className="flex-1 p-3 lg:p-4 min-h-[300px] lg:min-h-0 relative">
-        <div className="relative w-full h-full min-h-[400px] bg-gradient-to-b from-gray-50 to-gray-100 rounded-2xl overflow-hidden">
-          {/* Dimension labels */}
-          <div className="absolute top-3 left-3 z-10 flex items-center space-x-3">
-            <div className="glass-panel rounded-lg px-3 py-1.5 text-xs font-medium text-brand-charcoal/60">
-              {config.totalWidth} × {config.totalHeight} × {config.depth} cm
-            </div>
-          </div>
+    <div
+      ref={containerRef}
+      style={{ height: containerHeight }}
+      className="pt-[env(safe-area-inset-top)] flex flex-col items-center overflow-hidden bg-[#F5F3EE]"
+    >      {/* Breadcrumb — desktop only, above the configurator */}
+      <div className="hidden lg:flex items-center gap-1.5 w-[80vw] px-1 pb-2 text-[12px] text-brand-charcoal/45">
+        <Link href="/catalog" className="hover:text-brand-accent transition-colors">
+          Catalog
+        </Link>
+        <span>/</span>
+        <Link href="/catalog?categorie=suspendat" className="hover:text-brand-accent transition-colors">
+          Suspendat
+        </Link>
+        <span>/</span>
+        <span className="text-brand-accent font-medium">Corp Living</span>
+      </div>
 
-          {/* 3D Canvas */}
-          <Suspense fallback={<LoadingFallback />}>
-            <Canvas
-              shadows
-              dpr={[1, 2]}
-              gl={{ antialias: true }}
-              onCreated={({ gl }) => {
-                gl.toneMapping = THREE.NoToneMapping;
-                gl.toneMappingExposure = 0.74;
-                gl.shadowMap.type = THREE.PCFSoftShadowMap;
-                gl.outputColorSpace = THREE.SRGBColorSpace;
-              }}
-              className="configurator-canvas"
+      {/* ══════ Centered container ══════ */}
+      <div className="w-full h-full lg:w-[80vw] lg:h-[75vh] lg:rounded-2xl lg:shadow-2xl lg:border lg:border-brand-beige/30 lg:overflow-hidden flex flex-col lg:flex-row">
+      {/* ══════ 3D Canvas Area ══════ */}
+      <div
+        className={`relative transition-all duration-300 ease-out shrink-0 ${
+          isMobile
+            ? 'h-[35dvh]'
+            : isCanvasExpanded
+              ? 'flex-1'
+              : 'lg:flex-[3]'
+        } lg:h-auto`}
+      >
+        <div className="relative w-full h-full">
+          {/* Canvas background with subtle gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#f2f0ec] via-[#ece9e4] to-[#e6e3dd] lg:m-2.5 lg:rounded-xl overflow-hidden">
+            {/* Top-left dimension badge */}
+            <div className="absolute top-2.5 left-2.5 lg:top-3 lg:left-3 z-10">
+              <div className="bg-white/70 backdrop-blur-xl rounded-xl px-3 py-1.5 lg:px-3.5 lg:py-2 shadow-lg border border-white/40 transition-all duration-200">
+                <div className="flex items-center gap-1.5 text-[10px] lg:text-[11px] font-semibold text-brand-charcoal/65 tabular-nums">
+                  <span className="text-brand-charcoal/35">L</span><span>{config.totalWidth}</span>
+                  <span className="text-brand-charcoal/20">×</span>
+                  <span className="text-brand-charcoal/35">H</span><span>{config.totalHeight}</span>
+                  <span className="text-brand-charcoal/20">×</span>
+                  <span className="text-brand-charcoal/35">A</span><span>{config.depth}</span>
+                  <span className="text-brand-charcoal/35 text-[9px] lg:text-[10px] font-normal">cm</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Expand/collapse toggle (desktop only) */}
+            <button
+              onClick={toggleExpand}
+              className="hidden lg:flex absolute top-3 right-3 z-10 w-9 h-9 bg-white/70 backdrop-blur-xl rounded-xl shadow-lg border border-white/40 items-center justify-center text-brand-charcoal/40 hover:text-brand-charcoal/70 hover:bg-white/90 transition-all duration-200"
+              title={isCanvasExpanded ? 'Micșorează' : 'Mărește'}
             >
-              <Scene />
-            </Canvas>
-          </Suspense>
+              {isCanvasExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
 
-          {/* Instructions */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
-            <div className="glass-panel rounded-full px-4 py-1.5 text-xs text-brand-charcoal/50">
-              🖱️ Click și trage pentru a roti • Scroll pentru zoom
+            {/* 3D Canvas */}
+            <Suspense fallback={<LoadingFallback />}>
+              <Canvas
+                shadows
+                dpr={isMobile ? [1, 1.5] : [1, 2]}
+                gl={{ antialias: true }}
+                onCreated={({ gl }) => {
+                  gl.toneMapping = THREE.NoToneMapping;
+                  gl.toneMappingExposure = 0.74;
+                  gl.shadowMap.type = THREE.PCFSoftShadowMap;
+                  gl.outputColorSpace = THREE.SRGBColorSpace;
+                }}
+                className="configurator-canvas"
+              >
+                <Scene isMobile={isMobile} />
+              </Canvas>
+            </Suspense>
+
+            {/* Bottom hint (desktop) */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 hidden lg:block">
+              <div className="bg-white/50 backdrop-blur-xl rounded-full px-4 py-1.5 text-[11px] text-brand-charcoal/35 border border-white/30 shadow-sm">
+                🖱️ Click și trage pentru a roti • Scroll pentru zoom
+              </div>
             </div>
+
           </div>
         </div>
       </div>
 
-      {/* Panel — Right */}
-      <div className="w-full lg:w-[420px] xl:w-[460px] border-t lg:border-t-0 lg:border-l border-brand-beige/50 bg-white overflow-y-auto">
-        <div className="p-4 lg:p-6">
-          {/* Breadcrumb */}
-          <div className="flex items-center space-x-2 mb-4 pb-4 border-b border-brand-beige/30">
-            <Link href="/configurator" className="text-brand-charcoal/30 hover:text-brand-dark text-sm">
-              Configurator
-            </Link>
-            <span className="text-brand-charcoal/20">/</span>
-            <Link href="/configurator/suspendat" className="text-brand-charcoal/30 hover:text-brand-dark text-sm">
-              Mobilier Suspendat
-            </Link>
-            <span className="text-brand-charcoal/20">/</span>
-            <span className="text-brand-accent text-sm">Corp Living</span>
+      {/* ══════ Panel Area ══════ */}
+      <div
+        className={`flex flex-col transition-all duration-300 ease-out ${
+          isMobile
+            ? 'flex-1 min-h-0 border-t border-brand-beige/20'
+            : isCanvasExpanded
+              ? 'lg:flex-[1]'
+              : 'lg:flex-[1.2]'
+        } bg-white lg:border-l border-brand-beige/30`}
+      >
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          {/* Panel content */}
+          <div className="flex-1 flex flex-col overflow-hidden px-4 pb-3 lg:px-4 lg:pb-3">
+            <LivingUnitPanel />
           </div>
-
-          <LivingUnitPanel />
         </div>
       </div>
+      </div>{/* end centered container */}
     </div>
   );
 }

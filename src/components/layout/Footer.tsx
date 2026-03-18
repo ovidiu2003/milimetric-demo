@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Phone, Mail, MapPin, Facebook, Instagram, Linkedin, ArrowUp } from 'lucide-react';
 
 const navLinks = [
@@ -23,12 +24,14 @@ const externalLinks = [
 ];
 
 export default function Footer() {
+  const pathname = usePathname();
+  const isConfigurator = pathname?.startsWith('/configurator/');
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <footer className="relative z-10 bg-[#1A150F] text-[#F7F4EF]/70">
+    <footer className={`relative z-10 bg-[#1A150F] text-[#F7F4EF]/70${isConfigurator ? ' hidden lg:block' : ''}`}>
 
       {/* ── Main footer content ── */}
       <div className="max-w-6xl mx-auto px-6 sm:px-8 py-20 md:py-28">

@@ -157,8 +157,8 @@ export default function DespreNoiPage() {
             Spune-ne ce ai nevoie și noi îl transformăm în realitate. Consultanță gratuită.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/configurator" className="btn-primary text-sm">
-              Configurator
+            <Link href="/catalog" className="btn-primary text-sm">
+              Catalog
               <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
             <Link href="/contact" className="px-8 py-3.5 border border-brand-cream/20 text-brand-cream/70 font-medium tracking-wide hover:border-brand-cream/50 hover:text-brand-cream transition-all duration-300 inline-flex items-center justify-center text-sm">

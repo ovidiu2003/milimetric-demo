@@ -58,8 +58,8 @@ export default function ConfiguratorCategoryPage() {
       <div className="section-container section-padding text-center">
         <h1 className="heading-lg text-brand-dark mb-4">Categorie nevalidă</h1>
         <p className="text-brand-charcoal/50 mb-6">Categoria &quot;{category}&quot; nu a fost găsită.</p>
-        <Link href="/configurator" className="btn-primary">
-          Înapoi la Configurator
+        <Link href="/catalog" className="btn-primary">
+          Înapoi la Catalog
         </Link>
       </div>
     );
@@ -77,8 +77,8 @@ export default function ConfiguratorCategoryPage() {
         <div className="p-4 lg:p-6">
           {/* Category header */}
           <div className="flex items-center space-x-2 mb-4 pb-4 border-b border-brand-beige/30">
-            <Link href="/configurator" className="text-brand-charcoal/30 hover:text-brand-dark text-sm">
-              Configurator
+            <Link href="/catalog" className="text-brand-charcoal/30 hover:text-brand-dark text-sm">
+              Catalog
             </Link>
             <span className="text-brand-charcoal/20">/</span>
             <span className="text-brand-accent text-sm">{catInfo.name}</span>

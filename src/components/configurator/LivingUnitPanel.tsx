@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, Check, Minus, Plus,
+  ArrowLeft, ArrowRight, Check,
   FlipHorizontal, RotateCcw, ShoppingCart, Download,
-  Ruler, PaintBucket, FileText, Truck,
+  Ruler, PaintBucket, FileText, Truck, ChevronDown,
 } from 'lucide-react';
 import { useLivingUnitStore, LIVING_UNIT_LIMITS, LivingUnitStep } from '@/store/livingUnitStore';
 import { materialTypes, getBodyMaterials, getFrontMaterials, getMaterialById } from '@/data/materials';
@@ -12,13 +12,12 @@ import { useTextures } from '@/hooks/useTextures';
 import OfferRequestModal from '@/components/configurator/OfferRequestModal';
 import { exportLivingUnitPDF, generateLivingUnitPDFBase64, getLivingUnitPDFFileName } from '@/utils/exportLivingUnitPDF';
 
-const stepMeta: Record<LivingUnitStep, { title: string; icon: React.ReactNode }> = {
-  parameters: { title: 'Parametri', icon: <Ruler className="w-5 h-5" /> },
-  materials:  { title: 'Materiale', icon: <PaintBucket className="w-5 h-5" /> },
-  summary:    { title: 'Sumar',     icon: <ShoppingCart className="w-5 h-5" /> },
+const stepMeta: Record<LivingUnitStep, { label: string; icon: React.ReactNode }> = {
+  parameters: { label: 'Dimensiuni', icon: <Ruler className="w-3.5 h-3.5" /> },
+  materials:  { label: 'Materiale',  icon: <PaintBucket className="w-3.5 h-3.5" /> },
+  summary:    { label: 'Finalizare', icon: <FileText className="w-3.5 h-3.5" /> },
 };
 
-// ── helpers ──
 function formatPrice(price: number): string {
   return new Intl.NumberFormat('ro-RO', {
     style: 'currency', currency: 'RON',
@@ -27,7 +26,7 @@ function formatPrice(price: number): string {
 }
 
 // ──────────────────────────────────────────────
-// Slider + number input row
+// Stylish slider with visible thumb + gradient track
 // ──────────────────────────────────────────────
 function ParamSlider({
   label, value, min, max, step, unit, onChange,
@@ -35,49 +34,56 @@ function ParamSlider({
   label: string; value: number; min: number; max: number; step: number; unit: string;
   onChange: (v: number) => void;
 }) {
+  const pct = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-brand-charcoal/70">{label}</label>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => onChange(value - step)}
-            className="w-8 h-8 rounded-lg border border-brand-beige/50 flex items-center justify-center hover:bg-brand-warm transition-colors"
-          >
-            <Minus className="w-3 h-3" />
-          </button>
+    <div className="group">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[13px] text-brand-charcoal/60 leading-none group-hover:text-brand-charcoal/80 transition-colors">{label}</span>
+        <div className="flex items-baseline gap-0.5">
           <input
             type="number"
             value={value}
-            onChange={(e) => onChange(parseInt(e.target.value) || min)}
-            className="w-20 text-center input-field py-1.5 text-sm font-semibold"
+            onChange={(e) => {
+              const v = parseInt(e.target.value);
+              if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v)));
+            }}
+            className="w-12 text-right bg-transparent text-[14px] font-semibold text-brand-dark tabular-nums focus:outline-none focus:bg-white focus:shadow-sm focus:ring-1 focus:ring-brand-accent/20 rounded px-0.5 py-0 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             min={min} max={max} step={step}
           />
-          <button
-            onClick={() => onChange(value + step)}
-            className="w-8 h-8 rounded-lg border border-brand-beige/50 flex items-center justify-center hover:bg-brand-warm transition-colors"
-          >
-            <Plus className="w-3 h-3" />
-          </button>
-          <span className="text-xs text-brand-charcoal/30 w-8">{unit}</span>
+          <span className="text-[11px] text-brand-charcoal/40 leading-none">{unit}</span>
         </div>
       </div>
-      <input
-        type="range"
-        min={min} max={max} step={step} value={value}
-        onChange={(e) => onChange(parseInt(e.target.value))}
-        className="w-full h-2 bg-brand-beige rounded-lg appearance-none cursor-pointer accent-brand-accent"
-      />
-      <div className="flex justify-between text-xs text-brand-charcoal/30">
-        <span>{min} {unit}</span>
-        <span>{max} {unit}</span>
+      <div className="relative h-[6px] rounded-full bg-brand-beige/30 shadow-inner">
+        {/* Filled track */}
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-brand-accent/70 to-brand-accent transition-[width] duration-75"
+          style={{ width: `${pct}%` }}
+        />
+        {/* Floating value tooltip */}
+        <div className="slider-tooltip" style={{ left: `${pct}%` }}>
+          {value}{unit}
+        </div>
+        {/* Thumb indicator */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[14px] h-[14px] rounded-full bg-white border-2 border-brand-accent shadow-md transition-[left] duration-75 group-hover:scale-110 group-hover:shadow-lg"
+          style={{ left: `${pct}%` }}
+        />
+        {/* Invisible range input for interaction */}
+        <input
+          type="range"
+          min={min} max={max} step={step} value={value}
+          onChange={(e) => onChange(parseInt(e.target.value))}
+          className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer"
+          style={{ touchAction: 'none' }}
+        />
       </div>
     </div>
   );
 }
 
 // ──────────────────────────────────────────────
-// STEP 1: Parameters
+// STEP 1: Parameters — ultra compact
 // ──────────────────────────────────────────────
 function ParametersStep() {
   const c = useLivingUnitStore((s) => s.config);
@@ -89,173 +95,152 @@ function ParametersStep() {
     toggleMirror,
   } = useLivingUnitStore();
 
-  const towerHeight = c.totalHeight - c.suspensionHeight - c.comodaHeight;
   const [activeTab, setActiveTab] = useState<'orizontal' | 'vertical'>('orizontal');
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="heading-sm">Parametri Corp Living</h3>
-        <p className="text-brand-charcoal/50 text-sm mt-1">
-          Configurează dimensiunile corpului orizontal (comodă) și corpului vertical (turn).
-        </p>
-      </div>
-
-      {/* ── Switch tabs ── */}
-      <div className="flex rounded-lg bg-brand-warm p-1">
-        <button
-          onClick={() => setActiveTab('orizontal')}
-          className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all ${
-            activeTab === 'orizontal'
-              ? 'bg-white shadow text-brand-dark'
-              : 'text-brand-charcoal/50 hover:text-brand-charcoal/70'
-          }`}
+    <div className="flex flex-col">
+      {/* Tab switcher — sticky on mobile */}
+      <div className="sticky top-0 z-20 bg-white pb-1 pt-1 mx-1 lg:mx-0">
+        <div className="flex rounded-xl bg-[#F5F3EE] p-1 gap-1">
+          <button
+            onClick={() => setActiveTab('orizontal')}
+            className={`flex-1 py-2 text-[13px] font-semibold rounded-lg transition-all duration-200 ${
+              activeTab === 'orizontal'
+                ? 'bg-white shadow-md text-brand-dark ring-1 ring-brand-beige/20'
+                : 'text-brand-charcoal/45 hover:text-brand-charcoal/70 hover:bg-white/50'
+            }`}
         >
           Corp Orizontal
         </button>
         <button
           onClick={() => setActiveTab('vertical')}
-          className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all ${
+          className={`flex-1 py-2 text-[13px] font-semibold rounded-lg transition-all duration-200 ${
             activeTab === 'vertical'
-              ? 'bg-white shadow text-brand-dark'
-              : 'text-brand-charcoal/50 hover:text-brand-charcoal/70'
+              ? 'bg-white shadow-md text-brand-dark ring-1 ring-brand-beige/20'
+              : 'text-brand-charcoal/45 hover:text-brand-charcoal/70 hover:bg-white/50'
           }`}
         >
           Corp Vertical
         </button>
+        </div>
       </div>
 
-      {/* ── CORP ORIZONTAL (comoda) ── */}
+      {/* ── CORP ORIZONTAL ── */}
       {activeTab === 'orizontal' && (
-        <div className="space-y-5">
-          <p className="text-xs text-brand-charcoal/40 uppercase tracking-wider">Comodă (bază suspendată)</p>
-          <ParamSlider
-            label="Înălțime suspendare"
-            value={c.suspensionHeight}
-            {...LIVING_UNIT_LIMITS.suspensionHeight} unit="cm"
-            onChange={setSuspensionHeight}
-          />
-          <ParamSlider
-            label="Înălțime comodă"
-            value={c.comodaHeight}
-            {...LIVING_UNIT_LIMITS.comodaHeight} unit="cm"
-            onChange={setComodaHeight}
-          />
-          <ParamSlider
-            label="Lățime comodă"
-            value={c.comodaWidth}
-            {...LIVING_UNIT_LIMITS.comodaWidth} unit="cm"
-            onChange={setComodaWidth}
-          />
-          <ParamSlider
-            label="Număr coloane"
-            value={c.comodaColumns}
-            {...LIVING_UNIT_LIMITS.comodaColumns} unit="buc"
-            onChange={setComodaColumns}
-          />
+        <div key="orizontal" className="space-y-4 py-3 px-4 lg:px-[25px] animate-step-in">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium mb-3">Suspendare</p>
+            <ParamSlider
+              label="Înălțime suspendare"
+              value={c.suspensionHeight}
+              {...LIVING_UNIT_LIMITS.suspensionHeight} unit="cm"
+              onChange={setSuspensionHeight}
+            />
+          </div>
+          <div className="space-y-3">
+            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">Comodă</p>
+            <ParamSlider
+              label="Înălțime"
+              value={c.comodaHeight}
+              {...LIVING_UNIT_LIMITS.comodaHeight} unit="cm"
+              onChange={setComodaHeight}
+            />
+            <ParamSlider
+              label="Lățime"
+              value={c.comodaWidth}
+              {...LIVING_UNIT_LIMITS.comodaWidth} unit="cm"
+              onChange={setComodaWidth}
+            />
+            <ParamSlider
+              label="Număr coloane"
+              value={c.comodaColumns}
+              {...LIVING_UNIT_LIMITS.comodaColumns} unit="buc"
+              onChange={setComodaColumns}
+            />
+          </div>
         </div>
       )}
 
-      {/* ── CORP VERTICAL (turn = raft + dulap) ── */}
+      {/* ── CORP VERTICAL ── */}
       {activeTab === 'vertical' && (
-        <div className="space-y-5">
-          <p className="text-xs text-brand-charcoal/40 uppercase tracking-wider">Turn (raft deschis + dulap)</p>
-          <ParamSlider
-            label="Lățime raft deschis"
-            value={c.raftWidth}
-            {...LIVING_UNIT_LIMITS.raftWidth} unit="cm"
-            onChange={setRaftWidth}
-          />
-          <ParamSlider
-            label="Lățime dulap"
-            value={c.dulapWidth}
-            {...LIVING_UNIT_LIMITS.dulapWidth} unit="cm"
-            onChange={setDulapWidth}
-          />
-          <ParamSlider
-            label="Număr polițe corp deschis"
-            value={c.openShelfCount}
-            {...LIVING_UNIT_LIMITS.openShelfCount} unit="buc"
-            onChange={setOpenShelfCount}
-          />
-          <ParamSlider
-            label="Înălțime totală"
-            value={c.totalHeight}
-            {...LIVING_UNIT_LIMITS.totalHeight} unit="cm"
-            onChange={setTotalHeight}
-          />
-
-          {/* Mirror toggle */}
-          <button
-            onClick={toggleMirror}
-            className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center space-x-4 ${
-              c.mirrored
-                ? 'border-brand-accent bg-brand-accent/5'
-                : 'border-brand-beige/50 hover:border-brand-beige'
-            }`}
-          >
-            <FlipHorizontal className={`w-6 h-6 ${c.mirrored ? 'text-brand-accent' : 'text-brand-charcoal/40'}`} />
-            <div className="flex-1">
-              <h4 className={`font-semibold text-sm ${c.mirrored ? 'text-brand-accent' : 'text-brand-dark'}`}>
-                Oglindire dulap
-              </h4>
-              <p className="text-xs text-brand-charcoal/50">
-                {c.mirrored ? 'Dulapul este pe stânga' : 'Dulapul este pe dreapta'}
-              </p>
-            </div>
-            <div className={`w-12 h-6 rounded-full transition-all ${
-              c.mirrored ? 'bg-brand-accent' : 'bg-brand-beige'
-            }`}>
-              <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform mt-0.5 ${
-                c.mirrored ? 'translate-x-6 ml-0.5' : 'translate-x-0.5'
-              }`} />
-            </div>
-          </button>
+        <div key="vertical" className="space-y-4 py-3 px-4 lg:px-[25px] animate-step-in">
+          <div className="space-y-3">
+            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">Raft deschis</p>
+            <ParamSlider
+              label="Lățime"
+              value={c.raftWidth}
+              {...LIVING_UNIT_LIMITS.raftWidth} unit="cm"
+              onChange={setRaftWidth}
+            />
+            <ParamSlider
+              label="Număr polițe"
+              value={c.openShelfCount}
+              {...LIVING_UNIT_LIMITS.openShelfCount} unit="buc"
+              onChange={setOpenShelfCount}
+            />
+          </div>
+          <div className="space-y-3">
+            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">Dulap</p>
+            <ParamSlider
+              label="Lățime"
+              value={c.dulapWidth}
+              {...LIVING_UNIT_LIMITS.dulapWidth} unit="cm"
+              onChange={setDulapWidth}
+            />
+            {/* Mirror toggle */}
+            <button
+              onClick={toggleMirror}
+              className="w-full flex items-center justify-between rounded-lg px-3 py-2.5 bg-[#F5F3EE]/60 hover:bg-[#F5F3EE] transition-all duration-200 group"
+            >
+              <div className="flex items-center gap-2.5">
+                <FlipHorizontal className={`w-4 h-4 transition-colors duration-200 ${c.mirrored ? 'text-brand-accent' : 'text-brand-charcoal/40'}`} />
+                <span className="text-[13px] text-brand-charcoal/70">Oglindire</span>
+              </div>
+              <div className={`w-10 h-[22px] rounded-full transition-all duration-300 shrink-0 ${
+                c.mirrored ? 'bg-brand-accent shadow-sm' : 'bg-brand-beige/50'
+              }`}>
+                <div className={`w-[18px] h-[18px] rounded-full bg-white shadow-md transition-transform duration-300 mt-[2px] ${
+                  c.mirrored ? 'translate-x-[20px]' : 'translate-x-[2px]'
+                }`} />
+              </div>
+            </button>
+          </div>
         </div>
       )}
 
-      {/* ── Computed info ── */}
-      <div className="p-4 bg-brand-warm rounded-xl space-y-2">
-        <p className="text-xs text-brand-charcoal/50 uppercase tracking-wider mb-2">Dimensiuni calculate</p>
-        <div className="flex justify-between text-sm">
-          <span className="text-brand-charcoal/60">Lățime totală (auto)</span>
-          <span className="font-semibold">{c.totalWidth} cm</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-brand-charcoal/60">Înălțime turn (raft + dulap)</span>
-          <span className="font-semibold">{towerHeight} cm</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-brand-charcoal/60">Lățime turn</span>
-          <span className="font-semibold">{c.raftWidth + c.dulapWidth} cm</span>
-        </div>
+      {/* ── GENERAL (shared across both tabs) ── */}
+      <div className="space-y-3 py-3 px-4 lg:px-[25px] border-t border-brand-beige/20">
+        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">General</p>
+        <ParamSlider
+          label="Înălțime totală"
+          value={c.totalHeight}
+          {...LIVING_UNIT_LIMITS.totalHeight} unit="cm"
+          onChange={setTotalHeight}
+        />
+        <ParamSlider
+          label="Adâncime"
+          value={c.depth}
+          {...LIVING_UNIT_LIMITS.depth} unit="cm"
+          onChange={setDepth}
+        />
       </div>
 
-      {/* ── Advanced dimensions ── */}
-      <button
-        onClick={() => setShowAdvanced(!showAdvanced)}
-        className="text-xs text-brand-accent hover:text-brand-accent/80 flex items-center space-x-1"
-      >
-        <span>{showAdvanced ? '▾' : '▸'} Dimensiuni avansate</span>
-      </button>
-
-      {showAdvanced && (
-        <div className="space-y-5 p-4 bg-brand-warm/50 rounded-xl border border-brand-beige/30">
-          <ParamSlider
-            label="Adâncime"
-            value={c.depth}
-            {...LIVING_UNIT_LIMITS.depth} unit="cm"
-            onChange={setDepth}
-          />
+      {/* ── Inline dimensions bar ── */}
+      <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#F5F3EE] text-[12px] shrink-0 mt-auto">
+        <span className="text-brand-charcoal/55">Dimensiuni</span>
+        <div className="flex items-center gap-3 font-semibold text-brand-dark tabular-nums">
+          <span>L <span className="text-brand-charcoal/80">{c.totalWidth}</span></span>
+          <span>H <span className="text-brand-charcoal/80">{c.totalHeight}</span></span>
+          <span>A <span className="text-brand-charcoal/80">{c.depth}</span></span>
+          <span className="text-brand-charcoal/45 font-normal">cm</span>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
 // ──────────────────────────────────────────────
-// STEP 2: Materials
+// STEP 2: Materials — compact
 // ──────────────────────────────────────────────
 function MaterialsStep() {
   const config = useLivingUnitStore((s) => s.config);
@@ -264,7 +249,6 @@ function MaterialsStep() {
 
   const [activeTab, setActiveTab] = useState<'body' | 'front'>('body');
 
-  // Loads textures from /public/textures/ and registers them in the material registry
   const { loading: texturesLoading } = useTextures();
 
   const bodyMaterials = getBodyMaterials();
@@ -274,67 +258,83 @@ function MaterialsStep() {
   const activeMaterialId = activeTab === 'body' ? config.bodyMaterialId : config.frontMaterialId;
   const setMaterial = activeTab === 'body' ? setBodyMaterial : setFrontMaterial;
 
-  // Group by type
+  const selectedMat = getMaterialById(activeMaterialId);
+
   const grouped = materialTypes.map((mt) => ({
     ...mt,
     items: activeMaterials.filter((m) => m.type === mt.id),
   })).filter((g) => g.items.length > 0);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="heading-sm">Materiale</h3>
-        <p className="text-brand-charcoal/50 text-sm mt-1">
-          Alege materialul pentru corp (comodă + rafturi) și front dulap.
-        </p>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex rounded-lg bg-brand-warm p-1">
+    <div className="flex flex-col h-full animate-step-in">
+      {/* Tabs — sticky top */}
+      <div className="flex rounded-xl bg-[#F5F3EE] p-1 shrink-0 sticky top-0 z-20 gap-1 mx-1 lg:mx-0">
         <button
           onClick={() => setActiveTab('body')}
-          className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-            activeTab === 'body' ? 'bg-white shadow text-brand-dark' : 'text-brand-charcoal/50'
+          className={`flex-1 py-2 text-[13px] font-semibold rounded-lg transition-all duration-200 ${
+            activeTab === 'body' ? 'bg-white shadow-md text-brand-dark ring-1 ring-brand-beige/20' : 'text-brand-charcoal/45 hover:text-brand-charcoal/70 hover:bg-white/50'
           }`}
         >
-          Corp + Comodă
+          Corp
         </button>
         <button
           onClick={() => setActiveTab('front')}
-          className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-            activeTab === 'front' ? 'bg-white shadow text-brand-dark' : 'text-brand-charcoal/50'
+          className={`flex-1 py-2 text-[13px] font-semibold rounded-lg transition-all duration-200 ${
+            activeTab === 'front' ? 'bg-white shadow-md text-brand-dark ring-1 ring-brand-beige/20' : 'text-brand-charcoal/45 hover:text-brand-charcoal/70 hover:bg-white/50'
           }`}
         >
-          Front Dulap
+          Front
         </button>
       </div>
 
-      {/* Materials list by type */}
-      {texturesLoading && (
-        <p className="text-xs text-brand-charcoal/40 animate-pulse">Se încarcă texturile...</p>
+      {/* Selected material info bar */}
+      {selectedMat && (
+        <div className="mx-1 lg:mx-0 mt-2 flex items-center gap-2.5 px-3 py-2 rounded-lg bg-brand-accent/5 border border-brand-accent/10 animate-fade-in">
+          <div
+            className="w-8 h-8 rounded-md shrink-0 ring-1 ring-brand-accent/20"
+            style={selectedMat.textureUrl
+              ? { backgroundImage: `url(${selectedMat.textureUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              : { backgroundColor: selectedMat.color }}
+          />
+          <div className="min-w-0">
+            <p className="text-[12px] font-semibold text-brand-dark truncate">{selectedMat.name}</p>
+            <p className="text-[10px] text-brand-charcoal/45">{activeTab === 'body' ? 'Material corp' : 'Material front'}</p>
+          </div>
+          {selectedMat.priceMultiplier > 1.5 && (
+            <span className="ml-auto text-[9px] font-bold text-white bg-brand-accent px-1.5 py-0.5 rounded-md shrink-0">PREMIUM</span>
+          )}
+        </div>
       )}
-      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+
+      {/* Materials grid — fills available space */}
+      {texturesLoading && (
+        <div className="flex items-center gap-2 text-[11px] text-brand-charcoal/35 mt-2 px-1">
+          <div className="w-3 h-3 border-2 border-brand-accent/30 border-t-brand-accent rounded-full animate-spin" />
+          Se încarcă texturile...
+        </div>
+      )}
+      <div className="space-y-3 overflow-y-auto flex-1 mt-2 px-1 lg:px-0">
         {grouped.map((group) => (
           <div key={group.id}>
-            <h4 className="text-xs text-brand-charcoal/50 uppercase tracking-wider mb-2 sticky top-0 bg-white py-1">
+            <h4 className="text-[11px] text-brand-charcoal/50 uppercase tracking-widest font-medium mb-1.5 sticky top-0 bg-white py-0.5 z-10">
               {group.name}
             </h4>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-5 sm:grid-cols-5 lg:grid-cols-5 gap-1.5 animate-stagger">
               {group.items.map((mat) => {
                 const isActive = mat.id === activeMaterialId;
                 return (
                   <button
                     key={mat.id}
                     onClick={() => setMaterial(mat.id)}
-                    title={mat.id !== mat.name ? mat.id : undefined}
-                    className={`relative p-2 rounded-lg border-2 transition-all group ${
+                    title={mat.name}
+                    className={`material-card relative rounded-lg overflow-hidden ${
                       isActive
-                        ? 'border-brand-accent shadow-md'
-                        : 'border-brand-beige/30 hover:border-brand-beige/50'
+                        ? 'ring-2 ring-brand-accent ring-offset-1 shadow-lg'
+                        : 'ring-1 ring-brand-beige/20 hover:ring-brand-beige/50 hover:shadow-md'
                     }`}
                   >
                     <div
-                      className={`material-swatch w-full h-10 rounded-md ${isActive ? 'active' : ''}`}
+                      className="w-full aspect-square"
                       style={mat.textureUrl
                         ? {
                             backgroundImage: `url(${mat.textureUrl})`,
@@ -343,18 +343,15 @@ function MaterialsStep() {
                           }
                         : { backgroundColor: mat.color }}
                     />
-                    <p className="text-[10px] font-medium mt-1 text-brand-charcoal/70 truncate">{mat.name}</p>
-                    {mat.id !== mat.name && (
-                      <p className="text-[8px] text-brand-charcoal/35 truncate leading-tight">{mat.id}</p>
-                    )}
+                    <p className="text-[9px] font-medium text-brand-charcoal/65 truncate px-1 py-0.5 bg-white/90 leading-tight">{mat.name}</p>
                     {mat.priceMultiplier > 1.5 && (
-                      <span className="absolute -top-1 -right-1 text-[8px] bg-brand-accent text-white px-1 rounded-full">
-                        Premium
+                      <span className="absolute top-0 right-0 text-[7px] bg-brand-accent text-white px-1 py-px rounded-bl font-medium">
+                        P
                       </span>
                     )}
                     {isActive && (
-                      <div className="absolute -top-1 -left-1 w-5 h-5 bg-brand-accent rounded-full flex items-center justify-center">
-                        <Check className="w-3 h-3 text-white" />
+                      <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-brand-accent rounded-full flex items-center justify-center shadow-sm">
+                        <Check className="w-2.5 h-2.5 text-white" />
                       </div>
                     )}
                   </button>
@@ -364,56 +361,35 @@ function MaterialsStep() {
           </div>
         ))}
       </div>
-
-      {/* Selected material info */}
-      {(() => {
-        const selected = getMaterialById(activeMaterialId);
-        if (!selected) return null;
-        return (
-          <div className="p-3 bg-brand-warm rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div
-                className="w-10 h-10 rounded-lg"
-                style={selected.textureUrl
-                  ? {
-                      backgroundImage: `url(${selected.textureUrl})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                    }
-                  : { backgroundColor: selected.color }}
-              />
-              <div>
-                <p className="text-sm font-semibold">{selected.name}</p>
-                {selected.id !== selected.name && (
-                  <p className="text-[10px] text-brand-charcoal/50 font-mono break-all">{selected.id}</p>
-                )}
-                {selected.description && selected.description !== selected.id && (
-                  <p className="text-xs text-brand-charcoal/40">{selected.description}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
 
 // ──────────────────────────────────────────────
-// STEP 3: Summary
+// STEP 3: Summary — compact with collapsible details
 // ──────────────────────────────────────────────
+function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between items-center py-1.5 border-b border-brand-beige/15 last:border-0">
+      <span className="text-[12px] text-brand-charcoal/60">{label}</span>
+      <span className="text-[12px] font-semibold text-brand-dark">{value}</span>
+    </div>
+  );
+}
+
 function SummaryStep() {
   const config = useLivingUnitStore((s) => s.config);
   const price = useLivingUnitStore((s) => s.price);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(true);
 
   const bodyMat = getMaterialById(config.bodyMaterialId);
   const frontMat = getMaterialById(config.frontMaterialId);
   const towerHeight = config.totalHeight - config.suspensionHeight - config.comodaHeight;
 
-  const delivery = bodyMat?.type === 'lemn-masiv' ? '10-14 săptămâni' :
-                   bodyMat?.type === 'furnir' ? '8-12 săptămâni' : '6-10 săptămâni';
+  const delivery = bodyMat?.type === 'lemn-masiv' ? '10-14 săpt.' :
+                   bodyMat?.type === 'furnir' ? '8-12 săpt.' : '6-10 săpt.';
 
   async function handleOfferSubmit(data: {
     firstName: string;
@@ -441,165 +417,100 @@ function SummaryStep() {
       throw new Error(body?.error || 'Nu am putut trimite oferta. Incearca din nou.');
     }
 
-    setStatusMessage('Cererea a fost trimisa cu succes. Revenim catre tine in cel mai scurt timp.');
+    setStatusMessage('Cererea a fost trimisă cu succes!');
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="heading-sm">Sumar Configurare</h3>
-        <p className="text-brand-charcoal/50 text-sm mt-1">Verifică configurația Corp Living Suspendat.</p>
+    <div className="space-y-2 animate-step-in">
+      {/* Price hero — the main focus */}
+      <div className="rounded-xl bg-gradient-to-br from-brand-accent/10 via-brand-accent/5 to-transparent px-4 py-3.5 text-center border border-brand-accent/10">
+        <p className="text-[10px] text-brand-charcoal/50 uppercase tracking-wider mb-1">Preț estimat (TVA inclus)</p>
+        <p className="text-[28px] font-bold text-brand-accent leading-none tabular-nums">{formatPrice(Math.round(price.total * 1.19))}</p>
+        <p className="text-[11px] text-brand-charcoal/40 mt-1">{formatPrice(price.total)} fără TVA</p>
       </div>
 
-      {/* Config Summary */}
-      <div className="space-y-3">
-        <p className="text-xs text-brand-charcoal/40 uppercase tracking-wider">Corp Orizontal (Comodă)</p>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Lățime comodă</span>
-          <span className="text-sm font-semibold">{config.comodaWidth} cm</span>
+      {/* Material + delivery bar */}
+      <div className="rounded-lg bg-[#F5F3EE] px-3 py-2.5 flex items-center gap-3 text-[12px]">
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
+            <span
+              className="w-4 h-4 rounded-md shrink-0 ring-1 ring-brand-beige/30"
+              style={bodyMat?.textureUrl
+                ? { backgroundImage: `url(${bodyMat.textureUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                : { backgroundColor: bodyMat?.color }}
+              title={bodyMat?.name}
+            />
+            <span
+              className="w-4 h-4 rounded-md shrink-0 ring-1 ring-brand-beige/30"
+              style={frontMat?.textureUrl
+                ? { backgroundImage: `url(${frontMat.textureUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                : { backgroundColor: frontMat?.color }}
+              title={frontMat?.name}
+            />
+          </div>
+          <span className="text-brand-charcoal/50 text-[11px]">{bodyMat?.name} / {frontMat?.name}</span>
         </div>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Înălțime comodă</span>
-          <span className="text-sm font-semibold">{config.comodaHeight} cm</span>
-        </div>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Număr coloane</span>
-          <span className="text-sm font-semibold">{config.comodaColumns}</span>
-        </div>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Înălțime suspendare</span>
-          <span className="text-sm font-semibold">{config.suspensionHeight} cm</span>
-        </div>
+        <span className="text-brand-charcoal/20 ml-auto">•</span>
+        <span className="text-brand-charcoal/55 flex items-center gap-1">
+          <Truck className="w-3.5 h-3.5" />{delivery}
+        </span>
+      </div>
 
-        <p className="text-xs text-brand-charcoal/40 uppercase tracking-wider mt-4">Corp Vertical (Turn)</p>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Lățime raft deschis</span>
-          <span className="text-sm font-semibold">{config.raftWidth} cm</span>
-        </div>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Lățime dulap</span>
-          <span className="text-sm font-semibold">{config.dulapWidth} cm</span>
-        </div>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Înălțime turn</span>
-          <span className="text-sm font-semibold">{towerHeight} cm</span>
-        </div>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Polițe corp deschis</span>
-          <span className="text-sm font-semibold">{config.openShelfCount}</span>
-        </div>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Oglindire</span>
-          <span className="text-sm font-semibold">
-            {config.mirrored ? 'Da — dulap pe stânga' : 'Nu — dulap pe dreapta'}
-          </span>
-        </div>
+      {/* Collapsible details */}
+      <button
+        onClick={() => setShowDetails(!showDetails)}
+        className="flex items-center gap-1.5 text-[12px] text-brand-accent/70 hover:text-brand-accent transition-colors font-medium px-0.5"
+      >
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showDetails ? 'rotate-180' : ''}`} />
+        {showDetails ? 'Ascunde detalii' : 'Vezi detalii configurare'}
+      </button>
 
-        <p className="text-xs text-brand-charcoal/40 uppercase tracking-wider mt-4">Dimensiuni generale</p>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Dimensiuni totale</span>
-          <span className="text-sm font-semibold">
-            {config.totalWidth} × {config.totalHeight} × {config.depth} cm
-          </span>
-        </div>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Material corp</span>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: bodyMat?.color }} />
-            <span className="text-sm font-semibold">{bodyMat?.name}</span>
+      {showDetails && (
+        <div className="space-y-2 animate-fade-in">
+          <div className="rounded-lg bg-[#F5F3EE] px-3 py-1">
+            <SummaryRow label="Dimensiuni" value={`${config.totalWidth} × ${config.totalHeight} × ${config.depth} cm`} />
+            <SummaryRow label="Comodă" value={`${config.comodaWidth}×${config.comodaHeight} cm · ${config.comodaColumns} col`} />
+            <SummaryRow label="Raft deschis" value={`${config.raftWidth} cm · ${config.openShelfCount} polițe`} />
+            <SummaryRow label="Dulap" value={`${config.dulapWidth}×${towerHeight} cm${config.mirrored ? ' · oglindit' : ''}`} />
+            <SummaryRow label="Suspendare" value={`${config.suspensionHeight} cm`} />
+          </div>
+
+          {/* Price breakdown */}
+          <div className="rounded-lg border border-brand-beige/20 px-3 py-1">
+            <SummaryRow label="Comodă" value={formatPrice(price.comodaCost)} />
+            <SummaryRow label="Turn" value={formatPrice(price.towerCost)} />
+            <SummaryRow label="Fronturi" value={formatPrice(price.frontsCost)} />
+            <SummaryRow label="Feronerie" value={formatPrice(price.hardwareCost)} />
+            {price.discount > 0 && (
+              <div className="flex justify-between items-center py-1.5 text-[12px] text-brand-sage">
+                <span>Discount</span>
+                <span>-{formatPrice(price.discount)}</span>
+              </div>
+            )}
           </div>
         </div>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Material front dulap</span>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: frontMat?.color }} />
-            <span className="text-sm font-semibold">{frontMat?.name}</span>
-          </div>
-        </div>
-        <div className="p-3 bg-brand-warm rounded-lg flex justify-between items-center">
-          <span className="text-sm text-brand-charcoal/60">Termen livrare</span>
-          <span className="text-sm font-semibold flex items-center space-x-1">
-            <Truck className="w-4 h-4 text-brand-charcoal/30" />
-            <span>{delivery}</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Price breakdown */}
-      <div className="border-t border-brand-beige/50 pt-4 space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-brand-charcoal/50">Comodă</span>
-          <span>{formatPrice(price.comodaCost)}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-brand-charcoal/50">Turn (raft + dulap corp)</span>
-          <span>{formatPrice(price.towerCost)}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-brand-charcoal/50">Fronturi (sertare + ușă)</span>
-          <span>{formatPrice(price.frontsCost)}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-brand-charcoal/50">Feronerie & montaj</span>
-          <span>{formatPrice(price.hardwareCost)}</span>
-        </div>
-
-        {price.discount > 0 && (
-          <>
-            <div className="border-t border-dashed border-brand-beige/30 my-2" />
-            <div className="flex justify-between text-sm">
-              <span className="text-brand-charcoal/50">Subtotal</span>
-              <span>{formatPrice(price.totalBeforeDiscount)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-brand-sage">
-              <span>Discount volum</span>
-              <span>-{formatPrice(price.discount)}</span>
-            </div>
-          </>
-        )}
-
-        <div className="border-t border-brand-beige/50 pt-3 mt-2 flex justify-between items-center">
-          <span className="text-lg font-bold">Total</span>
-          <span className="text-2xl font-bold text-brand-accent">{formatPrice(price.total)}</span>
-        </div>
-      </div>
-
-      {/* TVA info */}
-      <div className="bg-brand-warm/60 rounded-lg p-3 space-y-1">
-        <div className="flex justify-between text-sm">
-          <span className="text-brand-charcoal/50">Preț fără TVA</span>
-          <span className="font-medium">{formatPrice(price.total)}</span>
-        </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-brand-charcoal/50">TVA (19%)</span>
-          <span className="font-medium">{formatPrice(Math.round(price.total * 0.19))}</span>
-        </div>
-        <div className="flex justify-between text-sm font-bold text-brand-dark border-t border-brand-accent/20 pt-1 mt-1">
-          <span>Total cu TVA</span>
-          <span className="text-brand-accent">{formatPrice(Math.round(price.total * 1.19))}</span>
-        </div>
-      </div>
+      )}
 
       {/* Actions */}
-      <div className="space-y-3">
+      <div className="flex gap-2 pt-1">
         <button
           onClick={() => setIsOfferModalOpen(true)}
-          className="btn-primary w-full text-center justify-center"
+          className="flex-1 py-3 rounded-xl bg-gradient-to-b from-brand-accent to-[#8a6d5a] hover:from-[#b08e78] hover:to-brand-accent text-white font-semibold text-[14px] transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
         >
-          <ShoppingCart className="w-5 h-5 mr-2" />
+          <ShoppingCart className="w-4 h-4" />
           Solicită Ofertă
         </button>
         <button
           onClick={() => exportLivingUnitPDF(config)}
-          className="btn-secondary w-full text-center justify-center text-sm"
+          className="py-3 px-4 rounded-xl border border-brand-beige/40 bg-white text-brand-charcoal/60 hover:text-brand-accent hover:border-brand-accent/40 hover:shadow-md transition-all duration-200 flex items-center justify-center active:scale-[0.98]"
+          title="Exportă PDF"
         >
-          <Download className="w-4 h-4 mr-2" />
-          Exporta PDF
+          <Download className="w-4 h-4" />
         </button>
-        {statusMessage && (
-          <p className="text-xs text-brand-sage">{statusMessage}</p>
-        )}
       </div>
+      {statusMessage && (
+        <p className="text-[11px] text-brand-sage text-center animate-fade-in">{statusMessage}</p>
+      )}
 
       <OfferRequestModal
         isOpen={isOfferModalOpen}
@@ -612,7 +523,7 @@ function SummaryStep() {
 }
 
 // ──────────────────────────────────────────────
-// MAIN PANEL
+// MAIN PANEL — compact chrome
 // ──────────────────────────────────────────────
 export default function LivingUnitPanel() {
   const currentStep = useLivingUnitStore((s) => s.currentStep);
@@ -626,6 +537,10 @@ export default function LivingUnitPanel() {
   const idx = steps.indexOf(currentStep);
   const isFirst = idx === 0;
   const isLast = idx === steps.length - 1;
+  const config = useLivingUnitStore((s) => s.config);
+
+  const bodyMat = getMaterialById(config.bodyMaterialId);
+  const frontMat = getMaterialById(config.frontMaterialId);
 
   function renderStep() {
     switch (currentStep) {
@@ -636,74 +551,119 @@ export default function LivingUnitPanel() {
   }
 
   return (
-    <div className="configurator-panel flex flex-col h-full">
-      {/* Step dots */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2">
-          {steps.map((step, i) => (
-            <button
-              key={step}
-              onClick={() => i <= idx && goToStep(step)}
-              className={`step-dot ${
-                i === idx ? 'active' : i < idx ? 'completed' : 'pending'
-              }`}
-              title={stepMeta[step].title}
-            />
-          ))}
+    <div className="flex flex-col h-full min-h-0">
+      {/* ── Horizontal step progress ── */}
+      <div className="shrink-0 pt-4 lg:pt-[30px] mb-2">
+        <div className="flex items-center">
+          {steps.map((step, i) => {
+            const meta = stepMeta[step];
+            const isActive = i === idx;
+            const isDone = i < idx;
+            return (
+              <React.Fragment key={step}>
+                {i > 0 && (
+                  <div className={`flex-1 h-px transition-colors duration-300 ${
+                    i <= idx ? 'bg-brand-accent/25' : 'bg-brand-beige/25'
+                  }`} />
+                )}
+                <button
+                  onClick={() => goToStep(step)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[12px] font-medium transition-all duration-150 ${
+                    isActive
+                      ? 'text-brand-accent'
+                      : isDone
+                        ? 'text-brand-charcoal/60 hover:text-brand-charcoal/80'
+                        : 'text-brand-charcoal/35 hover:text-brand-charcoal/50'
+                  }`}
+                >
+                  <span className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold transition-all duration-200 ${
+                    isActive
+                      ? 'bg-gradient-to-b from-brand-accent to-[#8a6d5a] text-white shadow-sm'
+                      : isDone
+                        ? 'bg-brand-accent/15 text-brand-accent'
+                        : 'bg-brand-beige/25 text-brand-charcoal/35'
+                  }`}>
+                    {isDone ? <Check className="w-3 h-3" /> : i + 1}
+                  </span>
+                  <span className="text-[11px] sm:inline">{meta.label}</span>
+                  {/* Show material preview dots when materials step is done */}
+                  {step === 'materials' && isDone && (
+                    <span className="flex items-center gap-0.5 ml-0.5">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full ring-1 ring-brand-beige/30"
+                        style={bodyMat?.textureUrl
+                          ? { backgroundImage: `url(${bodyMat.textureUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                          : { backgroundColor: bodyMat?.color }}
+                      />
+                      <span
+                        className="w-2.5 h-2.5 rounded-full ring-1 ring-brand-beige/30"
+                        style={frontMat?.textureUrl
+                          ? { backgroundImage: `url(${frontMat.textureUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                          : { backgroundColor: frontMat?.color }}
+                      />
+                    </span>
+                  )}
+                </button>
+              </React.Fragment>
+            );
+          })}
+
+          <div className="flex-1" />
+          <button
+            onClick={resetConfig}
+            className="text-brand-charcoal/30 hover:text-brand-charcoal/60 hover:bg-[#F5F3EE] transition-all duration-200 p-1.5 rounded-lg active:scale-[0.95]"
+            title="Resetează"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
         </div>
-        <button
-          onClick={resetConfig}
-          className="text-xs text-brand-charcoal/30 hover:text-brand-charcoal/60 flex items-center space-x-1"
-          title="Resetează"
-        >
-          <RotateCcw className="w-3 h-3" />
-          <span>Reset</span>
-        </button>
       </div>
 
-      {/* Step label */}
-      <div className="flex items-center space-x-2 mb-4 text-xs text-brand-charcoal/30 uppercase tracking-wider">
-        {stepMeta[currentStep].icon}
-        <span>
-          Pas {idx + 1} din {steps.length}: {stepMeta[currentStep].title}
-        </span>
-      </div>
-
-      {/* Step content */}
-      <div className="flex-1 overflow-y-auto mb-6 -mx-1 px-1">
+      {/* ── Step content (scrollable only if needed) ── */}
+      <div className="flex-1 overflow-y-auto min-h-0 pb-16 lg:pb-0">
         {renderStep()}
       </div>
 
-      {/* Price + Navigation */}
-      <div className="border-t border-brand-beige/30 pt-4 space-y-3">
-        {/* Price */}
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-brand-charcoal/50">Preț estimat</span>
-          <span className="text-xl font-bold text-brand-accent">{formatPrice(price.total)}</span>
-        </div>
-
-        {/* Nav */}
-        <div className="flex items-center space-x-3">
-          {!isFirst && (
-            <button
-              onClick={prevStep}
-              className="flex-1 py-3 rounded-lg border border-brand-beige/50 text-brand-charcoal/60 font-medium text-sm hover:bg-brand-warm transition-colors flex items-center justify-center space-x-1"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Înapoi</span>
-            </button>
-          )}
-          {!isLast && (
+      {/* ── Footer: price + nav (non-summary steps) ── */}
+      {!isLast && (
+        <div className="shrink-0 pt-2.5 mt-1 border-t border-brand-beige/15 lg:relative fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md lg:bg-transparent lg:backdrop-blur-none px-4 pb-[env(safe-area-inset-bottom)] lg:px-0 lg:pb-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] lg:shadow-none">
+          <div className="flex items-center gap-2 pb-1.5">
+            {!isFirst && (
+              <button
+                onClick={prevStep}
+                className="py-2.5 px-4 rounded-xl border border-brand-beige/30 bg-white text-brand-charcoal/60 text-[13px] font-medium hover:bg-[#F5F3EE] hover:border-brand-beige/50 hover:shadow-sm transition-all duration-200 flex items-center gap-1.5 active:scale-[0.98]"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Înapoi
+              </button>
+            )}
+            <div className="flex-1 text-right">
+              <span className="text-[10px] text-brand-charcoal/40 block leading-none">estimat</span>
+              <span className="text-[16px] font-bold text-brand-accent tabular-nums leading-tight">{formatPrice(price.total)}</span>
+            </div>
             <button
               onClick={nextStep}
-              className="flex-1 btn-primary justify-center text-sm"
+              className="py-2.5 px-6 rounded-xl bg-gradient-to-b from-brand-accent to-[#8a6d5a] hover:from-[#b08e78] hover:to-brand-accent text-white text-[13px] font-semibold transition-all duration-200 flex items-center gap-1.5 shadow-md hover:shadow-lg active:scale-[0.98]"
             >
-              <span>Continuă</span>
-              <ArrowRight className="w-4 h-4 ml-1" />
+              Continuă
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
-          )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Footer for summary: just back button */}
+      {isLast && (
+        <div className="shrink-0 pt-2 mt-1 border-t border-brand-beige/15 lg:relative fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md lg:bg-transparent lg:backdrop-blur-none px-4 pb-[env(safe-area-inset-bottom)] lg:px-0 lg:pb-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] lg:shadow-none">
+          <button
+            onClick={prevStep}
+            className="py-2 px-3 rounded-lg text-[12px] text-brand-charcoal/50 hover:text-brand-charcoal/70 hover:bg-[#F5F3EE] transition-all duration-200 flex items-center gap-1.5 active:scale-[0.98]"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Înapoi la Materiale
+          </button>
+        </div>
+      )}
     </div>
   );
 }

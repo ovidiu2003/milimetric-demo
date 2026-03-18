@@ -903,7 +903,7 @@ export default function HeroScene() {
             La milimetru,<br /><em>la locul lui.</em>
           </h2>
           <p>Design · Proiectare · Execuție</p>
-          <Link href="/configurator" className="hero-cta">
+          <Link href="/catalog" className="hero-cta">
             Solicită ofertă gratuită
           </Link>
         </div>

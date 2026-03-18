@@ -102,16 +102,15 @@
 
   /* ── Configurator specific ── */
   .configurator-panel {
-    @apply bg-white border border-brand-beige/50 p-6;
+    @apply bg-white;
   }
 
   .material-swatch {
-    @apply w-12 h-12 border-2 border-brand-beige cursor-pointer transition-all duration-200
-           hover:scale-110 hover:border-brand-accent hover:shadow-md;
+    @apply w-full h-full border-0 cursor-pointer transition-all duration-200;
   }
 
   .material-swatch.active {
-    @apply border-brand-accent ring-2 ring-brand-accent/30 scale-110;
+    @apply ring-0;
   }
 
   .compartment-cell {
@@ -155,6 +154,11 @@
   }
 }
 
+/* ── Safe area for mobile bottom bar ── */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar {
   width: 6px;
@@ -182,6 +186,86 @@
   cursor: grabbing;
 }
 
+/* ── Configurator step animations ── */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-step-in {
+  animation: fadeSlideIn 0.25s ease-out both;
+}
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out both;
+}
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out both;
+}
+
+/* Stagger children in material grids */
+.animate-stagger > * {
+  animation: fadeSlideIn 0.2s ease-out both;
+}
+.animate-stagger > *:nth-child(1)  { animation-delay: 0ms; }
+.animate-stagger > *:nth-child(2)  { animation-delay: 20ms; }
+.animate-stagger > *:nth-child(3)  { animation-delay: 40ms; }
+.animate-stagger > *:nth-child(4)  { animation-delay: 60ms; }
+.animate-stagger > *:nth-child(5)  { animation-delay: 80ms; }
+.animate-stagger > *:nth-child(6)  { animation-delay: 100ms; }
+.animate-stagger > *:nth-child(7)  { animation-delay: 120ms; }
+.animate-stagger > *:nth-child(8)  { animation-delay: 140ms; }
+.animate-stagger > *:nth-child(9)  { animation-delay: 160ms; }
+.animate-stagger > *:nth-child(10) { animation-delay: 180ms; }
+
+/* Slider value tooltip */
+.slider-tooltip {
+  position: absolute;
+  top: -28px;
+  transform: translateX(-50%);
+  background: #3B2E26;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.slider-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #3B2E26;
+}
+.group:hover .slider-tooltip,
+.group:active .slider-tooltip {
+  opacity: 1;
+}
+
+/* Material swatch hover effect */
+.material-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.material-card:hover {
+  transform: translateY(-2px);
+}
+.material-card:active {
+  transform: translateY(0) scale(0.97);
+}
+
 /* ── Subtle link underline animation ── */
 .link-subtle {
   position: relative;
@@ -203,38 +287,80 @@
   width: 100%;
 }
 
-/* ── Homepage header anti-FOUC ──
-   These rules apply instantly via the blocking script in layout.tsx,
-   preventing the cream menu from flashing before React hydrates. */
-html.is-homepage .header-topbar {
-  display: none !important;
+/* ═══════════════════════════════════════════════
+   Modern Navbar
+   ═══════════════════════════════════════════════ */
+
+.nav-header {
+  position: sticky;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-html.is-homepage .header-main {
-  background: transparent !important;
-  box-shadow: none !important;
+
+.nav-header--scrolled {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 1px 0 rgba(59,46,38,0.06),
+    0 4px 20px rgba(59,46,38,0.04);
 }
-html.is-homepage .header-logo {
-  color: #fff !important;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 2px 16px rgba(0,0,0,0.5);
+
+/* ── Pill navigation group ── */
+.nav-pill-group {
+  background: transparent;
+  border: none;
 }
-html.is-homepage .header-logo-dot {
-  color: #EDD090 !important;
+
+/* ── Nav pill — active background indicator ── */
+.nav-pill {
+  position: relative;
 }
-html.is-homepage .header-nav-link {
-  color: rgba(255,255,255,0.9) !important;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 2px 16px rgba(0,0,0,0.5);
+
+.nav-pill-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: none;
+  z-index: 0;
 }
-html.is-homepage .header-cta-link {
-  background: transparent !important;
-  border: 1px solid rgba(237,208,144,0.6) !important;
-  color: #fff !important;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.9), 0 2px 16px rgba(0,0,0,0.5);
+
+/* ── CTA Button — modern rounded ── */
+.nav-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: var(--color-dark);
+  color: var(--color-cream);
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border-radius: 9999px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(59,46,38,0.12);
 }
-html.is-homepage .header-mobile-btn {
-  color: #fff !important;
+
+.nav-cta:hover {
+  background: var(--color-accent);
+  box-shadow: 0 4px 14px rgba(160,130,109,0.25);
+  transform: translateY(-1px);
 }
-html.is-homepage .header-border {
-  display: none !important;
+
+.nav-cta:active {
+  transform: translateY(0);
+}
+
+/* ── Mobile dropdown ── */
+.nav-mobile-menu {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(59,46,38,0.06);
+  box-shadow: 0 8px 30px rgba(59,46,38,0.06);
 }
 
 /* ═══════════════════════════════════════════════
@@ -541,4 +667,31 @@ html.is-homepage .header-border {
 @keyframes heroScrollPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.25; transform: scaleY(0.65); }
+}
+
+/* ═══════════════════════════════════════════════
+   Homepage — Scroll Reveal
+   ═══════════════════════════════════════════════ */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Despre Noi page also uses a similar pattern */
+.fade-section {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.fade-section.visible {
+  opacity: 1;
+  transform: translateY(0);
 }

@@ -46,6 +46,19 @@ interface FurniturePreviewProps {
  *           mese, masute-cafea (table shapes)
  */
 export default function FurniturePreview({ item, className = '' }: FurniturePreviewProps) {
+  // If the item has a real image, show it instead of the SVG preview
+  if (item.imageUrl && !item.imageUrl.startsWith('/images/catalog/')) {
+    return (
+      <div className={`flex items-center justify-center ${className}`}>
+        <img
+          src={item.imageUrl}
+          alt={item.name}
+          className="w-full h-full object-cover"
+        />
+      </div>
+    );
+  }
+
   const preset = item.configPreset;
 
   if (!preset) {

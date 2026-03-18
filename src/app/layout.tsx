@@ -30,12 +30,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="font-sans">
-        {/* Blocking script: detect homepage before first paint to prevent header flash */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `if(location.pathname==='/'){document.documentElement.classList.add('is-homepage')}`,
-          }}
-        />
         <Header />
         <main className="min-h-screen">{children}</main>
         <Footer />
