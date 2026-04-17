@@ -38,7 +38,7 @@ const defaultConfig: LivingUnitConfig = {
   depth: 40,
   mirrored: false,
   bodyMaterialId: 'EGGER_H3730_ST10_Natural Hickory',
-  frontMaterialId: 'EGGER_H3430_ST22_White Aland Pine',
+  frontMaterialId: 'EGGER_W1100_ST9_Alpine White',
 };
 
 /** Recalculates totalWidth from comoda and tower widths */
