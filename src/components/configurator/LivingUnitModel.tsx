@@ -199,7 +199,7 @@ export default function LivingUnitModel() {
   const S = 0.01;
   const T = 1.8 * S; // panel thickness (1.8 cm)
   const FRONT_GAP = 0; // fronts flush with body
-  const FRONT_JOINT_GAP = 2.0 * S; // small reveal between adjacent fronts
+  const FRONT_JOINT_GAP = 0; // no gap between adjacent fronts
   const TOP_FRONT_OVERHANG = 1.0 * S; // top panel extends forward to cover front edge
 
   const {

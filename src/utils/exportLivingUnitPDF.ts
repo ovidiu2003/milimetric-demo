@@ -5,7 +5,7 @@ import { calculateLivingUnitPrice } from '@/store/livingUnitStore';
 
 const PANEL_THICKNESS = 1.8;
 const BACK_PANEL_THICKNESS = PANEL_THICKNESS / 2;
-const FRONT_JOINT_GAP = 0.3;
+const FRONT_JOINT_GAP = 0;
 const TOP_FRONT_OVERHANG = 1.0;
 
 interface PieceInfo {

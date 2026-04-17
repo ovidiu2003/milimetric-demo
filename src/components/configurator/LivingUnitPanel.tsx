@@ -202,7 +202,7 @@ function ParametersStep() {
               onChange={setComodaWidth}
             />
             <ParamSlider
-              label="Număr coloane"
+              label="Număr sertare"
               value={c.comodaColumns}
               {...LIVING_UNIT_LIMITS.comodaColumns} unit="buc"
               onChange={setComodaColumns}
