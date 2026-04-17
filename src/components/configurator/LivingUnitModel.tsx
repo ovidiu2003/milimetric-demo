@@ -285,6 +285,14 @@ export default function LivingUnitModel() {
           COMODA (full-width suspended cabinet)
          ══════════════════════════════════════════════════ */}
 
+      {suspensionHeight === 8 && (
+        <mesh position={[0, SH / 2, 0]} castShadow receiveShadow>
+          <boxGeometry args={[W, SH, D]} />
+          <meshStandardMaterial color={unifiedBodyColor} map={horizontalBodyTexture || undefined} roughness={0.62} metalness={0.02} envMapIntensity={0.06} />
+          <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
+        </mesh>
+      )}
+
       {/* Common countertop above all horizontal modules */}
       <mesh position={[0, comodaTopY + T / 2, TOP_FRONT_OVERHANG / 2]} castShadow receiveShadow>
         <boxGeometry args={[CW, T, D + TOP_FRONT_OVERHANG]} />

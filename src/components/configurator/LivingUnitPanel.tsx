@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Check,
   FlipHorizontal, RotateCcw, ShoppingCart, Download,
@@ -40,6 +40,19 @@ function ParamSlider({
   const dstep = Math.round(step * scale);
   const pct = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
 
+  const [inputValue, setInputValue] = useState<string>(dv.toString());
+
+  useEffect(() => {
+    setInputValue(dv.toString());
+  }, [dv]);
+
+  const commitValue = (raw: string) => {
+    const parsed = parseInt(raw, 10);
+    if (!isNaN(parsed)) {
+      onChange(Math.max(min, Math.min(max, parsed / scale)));
+    }
+  };
+
   return (
     <div className="group overflow-visible px-1 pt-1 pb-2">
       <div className="flex items-center justify-between mb-1.5">
@@ -47,10 +60,20 @@ function ParamSlider({
         <div className="flex items-baseline gap-0.5">
           <input
             type="number"
-            value={dv}
+            value={inputValue}
             onChange={(e) => {
-              const v = parseInt(e.target.value);
-              if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v / scale)));
+              setInputValue(e.target.value);
+              const parsed = parseInt(e.target.value, 10);
+              if (!isNaN(parsed)) {
+                onChange(Math.max(min, Math.min(max, parsed / scale)));
+              }
+            }}
+            onBlur={(e) => {
+              if (e.target.value === '' || isNaN(parseInt(e.target.value, 10))) {
+                setInputValue(dv.toString());
+              } else {
+                commitValue(e.target.value);
+              }
             }}
             className="w-14 text-right bg-transparent text-[14px] font-semibold text-brand-dark tabular-nums focus:outline-none focus:bg-white focus:shadow-sm focus:ring-1 focus:ring-brand-accent/20 rounded px-0.5 py-0 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             min={dmin} max={dmax} step={dstep}
@@ -77,7 +100,7 @@ function ParamSlider({
         <input
           type="range"
           min={dmin} max={dmax} step={dstep} value={dv}
-          onChange={(e) => onChange(parseInt(e.target.value) / scale)}
+          onChange={(e) => onChange(parseInt(e.target.value, 10) / scale)}
           className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer"
           style={{ touchAction: 'none' }}
         />
@@ -95,7 +118,7 @@ function ParametersStep() {
     setSuspensionHeight, setComodaHeight, setComodaWidth, setComodaColumns,
     setRaftWidth, setDulapWidth,
     setOpenShelfCount,
-    setTotalHeight, setDepth,
+    setTotalHeight, setDepth, setTotalWidth,
     toggleMirror,
   } = useLivingUnitStore();
 
@@ -103,6 +126,29 @@ function ParametersStep() {
 
   return (
     <div className="flex flex-col">
+      {/* ── GENERAL (shared across both tabs) ── */}
+      <div className="space-y-3 py-3 px-4 lg:px-[25px] border-b border-brand-beige/20">
+        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">General</p>
+        <ParamSlider
+          label="Lățime totală"
+          value={c.totalWidth}
+          {...LIVING_UNIT_LIMITS.totalWidth} unit="mm" scale={10}
+          onChange={setTotalWidth}
+        />
+        <ParamSlider
+          label="Înălțime totală"
+          value={c.totalHeight}
+          {...LIVING_UNIT_LIMITS.totalHeight} unit="mm" scale={10}
+          onChange={setTotalHeight}
+        />
+        <ParamSlider
+          label="Adâncime"
+          value={c.depth}
+          {...LIVING_UNIT_LIMITS.depth} unit="mm" scale={10}
+          onChange={setDepth}
+        />
+      </div>
+
       {/* Tab switcher — sticky on mobile */}
       <div className="sticky top-0 z-20 bg-white pb-1 pt-1 mx-1 lg:mx-0">
         <div className="flex rounded-xl bg-[#F5F3EE] p-1 gap-1">
@@ -127,23 +173,6 @@ function ParametersStep() {
           Corp Vertical
         </button>
         </div>
-      </div>
-
-      {/* ── GENERAL (shared across both tabs) ── */}
-      <div className="space-y-3 py-3 px-4 lg:px-[25px] border-t border-brand-beige/20">
-        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">General</p>
-        <ParamSlider
-          label="Înălțime totală"
-          value={c.totalHeight}
-          {...LIVING_UNIT_LIMITS.totalHeight} unit="mm" scale={10}
-          onChange={setTotalHeight}
-        />
-        <ParamSlider
-          label="Adâncime"
-          value={c.depth}
-          {...LIVING_UNIT_LIMITS.depth} unit="mm" scale={10}
-          onChange={setDepth}
-        />
       </div>
 
       {/* ── CORP ORIZONTAL ── */}

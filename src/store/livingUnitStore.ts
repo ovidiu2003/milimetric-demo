@@ -10,17 +10,18 @@ const STEPS: LivingUnitStep[] = ['parameters', 'materials', 'summary'];
 // ===== CONSTRAINTS =====
 export const LIVING_UNIT_LIMITS = {
   // Corp orizontal
-  suspensionHeight: { min: 5, max: 30, step: 0.1 },
-  comodaHeight:     { min: 15, max: 45, step: 0.1 },
-  comodaWidth:      { min: 100, max: 400, step: 0.1 },
+  suspensionHeight: { min: 8, max: 70, step: 0.1 },
+  comodaHeight:     { min: 20, max: 40, step: 0.1 },
+  comodaWidth:      { min: 80, max: 400, step: 0.1 },
   comodaColumns:    { min: 2, max: 10, step: 1 },
   // Corp vertical
-  raftWidth:        { min: 10, max: 40, step: 0.1 },
-  dulapWidth:       { min: 30, max: 90, step: 0.1 },
+  raftWidth:        { min: 12, max: 60, step: 0.1 },
+  dulapWidth:       { min: 30, max: 60, step: 0.1 },
   openShelfCount:   { min: 0, max: 12, step: 1 },
   // General
-  totalHeight:      { min: 200, max: 300, step: 0.1 },
-  depth:            { min: 30, max: 55, step: 0.1 },
+  totalWidth:       { min: 80, max: 400, step: 0.1 },
+  totalHeight:      { min: 180, max: 300, step: 0.1 },
+  depth:            { min: 30, max: 50, step: 0.1 },
 } as const;
 
 // ===== DEFAULT CONFIG =====
@@ -119,6 +120,7 @@ interface LivingUnitState {
   setOpenShelfCount: (v: number) => void;
   setTotalHeight: (v: number) => void;
   setDepth: (v: number) => void;
+  setTotalWidth: (v: number) => void;
   toggleMirror: () => void;
   setBodyMaterial: (id: string) => void;
   setFrontMaterial: (id: string) => void;
@@ -132,6 +134,12 @@ interface LivingUnitState {
 
 function clamp(v: number, min: number, max: number) {
   return Math.min(Math.max(v, min), max);
+}
+
+function calculateComodaColumns(widthCm: number) {
+  const minColumnWidth = 30; // 300 mm
+  const columns = Math.max(2, Math.floor(widthCm / minColumnWidth));
+  return Math.min(columns, LIVING_UNIT_LIMITS.comodaColumns.max);
 }
 
 export const useLivingUnitStore = create<LivingUnitState>((set, get) => ({
@@ -159,6 +167,7 @@ export const useLivingUnitStore = create<LivingUnitState>((set, get) => ({
     const prev = get().config;
     const val = clamp(v, LIVING_UNIT_LIMITS.comodaWidth.min, LIVING_UNIT_LIMITS.comodaWidth.max);
     const updated = { ...prev, comodaWidth: val };
+    updated.comodaColumns = calculateComodaColumns(val);
     updated.totalWidth = recalcTotalWidth(updated);
     set({ config: updated, price: calculateLivingUnitPrice(updated) });
   },
@@ -205,6 +214,24 @@ export const useLivingUnitStore = create<LivingUnitState>((set, get) => ({
   setDepth: (v) => {
     const config = { ...get().config, depth: clamp(v, LIVING_UNIT_LIMITS.depth.min, LIVING_UNIT_LIMITS.depth.max) };
     set({ config, price: calculateLivingUnitPrice(config) });
+  },
+
+  setTotalWidth: (v) => {
+    const prev = get().config;
+    const val = clamp(v, LIVING_UNIT_LIMITS.totalWidth.min, LIVING_UNIT_LIMITS.totalWidth.max);
+    const towerW = prev.raftWidth + prev.dulapWidth;
+
+    const updated = { ...prev };
+    if (prev.comodaWidth >= towerW) {
+      updated.comodaWidth = val;
+      updated.comodaColumns = calculateComodaColumns(val);
+    } else {
+      const targetDulap = clamp(val - prev.raftWidth, LIVING_UNIT_LIMITS.dulapWidth.min, LIVING_UNIT_LIMITS.dulapWidth.max);
+      updated.dulapWidth = targetDulap;
+    }
+
+    updated.totalWidth = recalcTotalWidth(updated);
+    set({ config: updated, price: calculateLivingUnitPrice(updated) });
   },
 
   toggleMirror: () => {
