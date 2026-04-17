@@ -38,7 +38,7 @@ function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heig
     padding: '2px 6px',
     fontSize: '11px',
     fontWeight: 400,
-    fontFamily: "'DM Mono', ui-monospace, monospace",
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     fontVariantNumeric: 'tabular-nums',
     color: '#111827',
     whiteSpace: 'nowrap',

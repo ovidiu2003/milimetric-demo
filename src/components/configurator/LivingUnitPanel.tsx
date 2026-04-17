@@ -129,6 +129,23 @@ function ParametersStep() {
         </div>
       </div>
 
+      {/* ── GENERAL (shared across both tabs) ── */}
+      <div className="space-y-3 py-3 px-4 lg:px-[25px] border-t border-brand-beige/20">
+        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">General</p>
+        <ParamSlider
+          label="Înălțime totală"
+          value={c.totalHeight}
+          {...LIVING_UNIT_LIMITS.totalHeight} unit="mm" scale={10}
+          onChange={setTotalHeight}
+        />
+        <ParamSlider
+          label="Adâncime"
+          value={c.depth}
+          {...LIVING_UNIT_LIMITS.depth} unit="mm" scale={10}
+          onChange={setDepth}
+        />
+      </div>
+
       {/* ── CORP ORIZONTAL ── */}
       {activeTab === 'orizontal' && (
         <div key="orizontal" className="space-y-4 py-3 px-4 lg:px-[25px] animate-step-in">
@@ -211,23 +228,6 @@ function ParametersStep() {
           </div>
         </div>
       )}
-
-      {/* ── GENERAL (shared across both tabs) ── */}
-      <div className="space-y-3 py-3 px-4 lg:px-[25px] border-t border-brand-beige/20">
-        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">General</p>
-        <ParamSlider
-          label="Înălțime totală"
-          value={c.totalHeight}
-          {...LIVING_UNIT_LIMITS.totalHeight} unit="mm" scale={10}
-          onChange={setTotalHeight}
-        />
-        <ParamSlider
-          label="Adâncime"
-          value={c.depth}
-          {...LIVING_UNIT_LIMITS.depth} unit="mm" scale={10}
-          onChange={setDepth}
-        />
-      </div>
 
       {/* ── Inline dimensions bar ── */}
       <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#F5F3EE] text-[12px] shrink-0 mt-auto">

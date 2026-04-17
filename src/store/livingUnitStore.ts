@@ -10,17 +10,17 @@ const STEPS: LivingUnitStep[] = ['parameters', 'materials', 'summary'];
 // ===== CONSTRAINTS =====
 export const LIVING_UNIT_LIMITS = {
   // Corp orizontal
-  suspensionHeight: { min: 5, max: 30, step: 1 },
-  comodaHeight:     { min: 15, max: 45, step: 1 },
-  comodaWidth:      { min: 100, max: 400, step: 5 },
+  suspensionHeight: { min: 5, max: 30, step: 0.1 },
+  comodaHeight:     { min: 15, max: 45, step: 0.1 },
+  comodaWidth:      { min: 100, max: 400, step: 0.1 },
   comodaColumns:    { min: 2, max: 10, step: 1 },
   // Corp vertical
-  raftWidth:        { min: 10, max: 40, step: 1 },
-  dulapWidth:       { min: 30, max: 90, step: 1 },
+  raftWidth:        { min: 10, max: 40, step: 0.1 },
+  dulapWidth:       { min: 30, max: 90, step: 0.1 },
   openShelfCount:   { min: 0, max: 12, step: 1 },
   // General
-  totalHeight:      { min: 200, max: 300, step: 5 },
-  depth:            { min: 30, max: 55, step: 1 },
+  totalHeight:      { min: 200, max: 300, step: 0.1 },
+  depth:            { min: 30, max: 55, step: 0.1 },
 } as const;
 
 // ===== DEFAULT CONFIG =====

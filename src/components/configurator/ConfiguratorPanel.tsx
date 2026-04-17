@@ -468,7 +468,7 @@ function MaterialStep() {
               <div>
                 <p className="text-sm font-semibold">{selected.name}</p>
                 {selected.id !== selected.name && (
-                  <p className="text-[10px] text-brand-charcoal/50 font-mono break-all">{selected.id}</p>
+                  <p className="text-[10px] text-brand-charcoal/50 font-sans break-all">{selected.id}</p>
                 )}
                 {selected.description && selected.description !== selected.id && (
                   <p className="text-xs text-brand-charcoal/40">{selected.description}</p>
