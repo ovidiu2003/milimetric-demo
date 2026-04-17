@@ -251,7 +251,7 @@ function Scene({ isMobile }: { isMobile: boolean }) {
         maxAzimuthAngle={Math.PI / 1.8}
         minDistance={1.5}
         maxDistance={9}
-        target={[0, centerY, furnitureZ]}
+        target={[0, 1.5, 0]}
         panSpeed={0.7}
         mouseButtons={{ LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }}
       />
