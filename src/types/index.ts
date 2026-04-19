@@ -203,9 +203,20 @@ export interface LivingUnitConfig {
 
 export type DressingInteriorType = 'bara-raft' | 'rafturi' | 'mixt' | 'rafturi-deschise';
 
+export type DressingSectionType = 'drawers' | 'shelves' | 'hanging-rod' | 'empty';
+
+export interface DressingModuleSection {
+  id: string;                         // unique stable id (timestamp/random)
+  type: DressingSectionType;
+  heightCm: number;                   // cm — allocated vertical space
+  drawerCount?: number;               // only for 'drawers' (1..5)
+  shelfCount?: number;                // only for 'shelves' (0..6, interior shelves)
+}
+
 export interface DressingModuleConfig {
   width: number;                      // cm — individual module width (80..120)
-  interiorType: DressingInteriorType; // interior layout preset
+  interiorType: DressingInteriorType; // interior layout quick-preset (regenerates sections)
+  sections?: DressingModuleSection[]; // custom vertical sections (bottom-to-top)
   hasDoors: boolean;                  // closed with doors (vertical handle) or open
   hasTopCompartment: boolean;         // optional small storage box above main body
   topCompartmentHeight: number;       // cm — height of the top compartment (30..60)

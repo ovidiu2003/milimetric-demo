@@ -7,6 +7,8 @@ import {
   Ruler, PaintBucket, FileText, Truck, ChevronDown,
   DoorOpen, DoorClosed, Sparkles, Layers, Package, PanelLeft, PanelRight, PanelsTopLeft,
   Archive, Grid3x3,
+  Plus, Trash2, ChevronUp, ArrowUp, ArrowDown, Minus,
+  Rows3, Columns2, Component, Square,
 } from 'lucide-react';
 import {
   useDressingUnitStore,
@@ -17,7 +19,7 @@ import {
   DRESSING_PRESETS,
   DressingUnitStep,
 } from '@/store/dressingUnitStore';
-import { DressingInteriorType, DressingSidePosition, DressingSideLayout } from '@/types';
+import { DressingInteriorType, DressingSidePosition, DressingSideLayout, DressingSectionType, DressingModuleSection } from '@/types';
 import { materialTypes, getBodyMaterials, getFrontMaterials, getMaterialById } from '@/data/materials';
 import { useTextures } from '@/hooks/useTextures';
 import OfferRequestModal from '@/components/configurator/OfferRequestModal';
@@ -177,12 +179,153 @@ function LayoutPreview({ layout, active }: { layout: DressingSideLayout; active:
   );
 }
 
+// ──────────────────────────────────────────────
+// Section editor — per-module custom vertical sections
+// ──────────────────────────────────────────────
+const SECTION_TYPE_META: Record<DressingSectionType, { label: string; icon: React.ReactNode; short: string }> = {
+  'drawers':     { label: 'Sertare',      icon: <Rows3 className="w-3.5 h-3.5" />,     short: 'Ser.' },
+  'shelves':     { label: 'Rafturi',      icon: <Layers className="w-3.5 h-3.5" />,    short: 'Raft.' },
+  'hanging-rod': { label: 'Bară haine',   icon: <Minus className="w-3.5 h-3.5" />,     short: 'Bară' },
+  'empty':       { label: 'Spațiu gol',   icon: <Square className="w-3.5 h-3.5" />,    short: 'Gol' },
+};
+
+function SectionEditor({
+  moduleIndex, sections, onAdd, onRemove, onUpdate, onMove,
+}: {
+  moduleIndex: number;
+  sections: DressingModuleSection[];
+  onAdd: (type: DressingSectionType) => void;
+  onRemove: (id: string) => void;
+  onUpdate: (id: string, patch: Partial<DressingModuleSection>) => void;
+  onMove: (id: string, dir: 'up' | 'down') => void;
+}) {
+  const totalCm = sections.reduce((s, sec) => s + sec.heightCm, 0);
+
+  return (
+    <div className="space-y-1.5 pt-1">
+      <div className="flex items-center justify-between mb-0.5">
+        <label className="text-[10px] uppercase tracking-wider text-brand-charcoal/55 font-semibold flex items-center gap-1">
+          <Component className="w-3 h-3" />
+          Secțiuni personalizate
+        </label>
+        <span className="text-[9.5px] text-brand-charcoal/40 tabular-nums">
+          total ≈ {totalCm} cm
+        </span>
+      </div>
+
+      {/* Lista sectiuni — de sus (ultimul din array = top) in jos */}
+      <div className="space-y-1">
+        {[...sections].reverse().map((sec) => {
+          const realIdx = sections.findIndex((s) => s.id === sec.id);
+          const meta = SECTION_TYPE_META[sec.type];
+          const isTop = realIdx === sections.length - 1;
+          const isBottom = realIdx === 0;
+          return (
+            <div
+              key={sec.id}
+              className="rounded-md border border-brand-beige/40 bg-white px-2 py-1.5 hover:border-brand-accent/40 transition-colors"
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-dark">
+                  <span className="text-brand-accent">{meta.icon}</span>
+                  {meta.label}
+                </span>
+                <div className="ml-auto flex items-center gap-0.5">
+                  <button
+                    onClick={() => onMove(sec.id, 'up')}
+                    disabled={isTop}
+                    title="Mută în sus"
+                    className="p-0.5 rounded hover:bg-brand-beige/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ArrowUp className="w-3 h-3 text-brand-charcoal/60" />
+                  </button>
+                  <button
+                    onClick={() => onMove(sec.id, 'down')}
+                    disabled={isBottom}
+                    title="Mută în jos"
+                    className="p-0.5 rounded hover:bg-brand-beige/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ArrowDown className="w-3 h-3 text-brand-charcoal/60" />
+                  </button>
+                  <button
+                    onClick={() => onRemove(sec.id)}
+                    disabled={sections.length <= 1}
+                    title="Șterge secțiunea"
+                    className="p-0.5 rounded hover:bg-red-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3 text-red-500/70" />
+                  </button>
+                </div>
+              </div>
+
+              <ParamSlider
+                label="Înălțime"
+                value={sec.heightCm}
+                {...DRESSING_UNIT_LIMITS.sectionHeight}
+                unit="cm"
+                onChange={(v) => onUpdate(sec.id, { heightCm: v })}
+              />
+
+              {sec.type === 'drawers' && (
+                <ParamSlider
+                  label="Număr sertare"
+                  value={sec.drawerCount ?? 2}
+                  {...DRESSING_UNIT_LIMITS.drawerCount}
+                  unit="buc"
+                  onChange={(v) => onUpdate(sec.id, { drawerCount: v })}
+                />
+              )}
+
+              {sec.type === 'shelves' && (
+                <ParamSlider
+                  label="Rafturi interioare"
+                  value={sec.shelfCount ?? 2}
+                  {...DRESSING_UNIT_LIMITS.sectionShelfCount}
+                  unit="buc"
+                  onChange={(v) => onUpdate(sec.id, { shelfCount: v })}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Butoane adaugare */}
+      <div className="grid grid-cols-4 gap-1 pt-0.5">
+        {(Object.keys(SECTION_TYPE_META) as DressingSectionType[]).map((t) => {
+          const meta = SECTION_TYPE_META[t];
+          return (
+            <button
+              key={t}
+              onClick={() => onAdd(t)}
+              title={`Adaugă ${meta.label.toLowerCase()}`}
+              className="flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-md border border-dashed border-brand-beige/60 bg-white/60 hover:border-brand-accent/60 hover:bg-brand-accent/5 text-brand-charcoal/70 hover:text-brand-accent transition-all"
+            >
+              <span className="inline-flex items-center gap-0.5">
+                <Plus className="w-2.5 h-2.5" />
+                {meta.icon}
+              </span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider leading-none">
+                {meta.short}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[9.5px] text-brand-charcoal/40 leading-tight italic">
+        Secțiunile sunt stivuite de sus în jos exact ca în vizualizarea 3D. Schimbă ordinea cu săgețile.
+      </p>
+    </div>
+  );
+}
+
 function ParametersStep() {
   const c = useDressingUnitStore((s) => s.config);
   const {
     setModuleCount, setTotalModulesWidth, setTotalHeight, setDepth, setPlinthHeight,
     setModuleWidth, setModuleInterior, toggleModuleDoors,
     setModuleTopCompartmentHeight,
+    addModuleSection, removeModuleSection, updateModuleSection, moveModuleSection,
     setSideShelvesPosition, setSideShelvesColumns,
     setSideShelvesColumnWidth, setSideShelvesShelfCount, setSideShelvesLayout,
     applyPreset, toggleAllDoors,
@@ -380,7 +523,19 @@ function ParametersStep() {
                         </select>
                         <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-brand-charcoal/40 pointer-events-none" />
                       </div>
+                      <p className="text-[10px] text-brand-charcoal/40 mt-1 leading-tight">
+                        Selectează un șablon — apoi personalizează secțiunile mai jos.
+                      </p>
                     </div>
+
+                    <SectionEditor
+                      moduleIndex={i}
+                      sections={m.sections || []}
+                      onAdd={(t) => addModuleSection(i, t)}
+                      onRemove={(id) => removeModuleSection(i, id)}
+                      onUpdate={(id, patch) => updateModuleSection(i, id, patch)}
+                      onMove={(id, dir) => moveModuleSection(i, id, dir)}
+                    />
 
                     <div>
                       <label className="text-[10px] uppercase tracking-wider text-brand-charcoal/45 font-semibold block mb-1">

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { DressingUnitConfig, DressingInteriorType, DressingModuleConfig, DressingSidePosition, DressingSideLayout } from '@/types';
+import { DressingUnitConfig, DressingInteriorType, DressingModuleConfig, DressingModuleSection, DressingSectionType, DressingSidePosition, DressingSideLayout } from '@/types';
 import { getMaterialById } from '@/data/materials';
 
 // ===== STEP TYPES =====
@@ -15,6 +15,9 @@ export const DRESSING_UNIT_LIMITS = {
   depth:                { min: 50, max: 65, step: 0.1 },
   plinthHeight:         { min: 0, max: 15, step: 0.1 },
   topCompartmentHeight: { min: 25, max: 60, step: 0.1 },
+  sectionHeight:        { min: 20, max: 220, step: 1 },   // cm — inaltime sectiune in modul
+  drawerCount:          { min: 1, max: 5, step: 1 },
+  sectionShelfCount:    { min: 0, max: 6, step: 1 },
   sideColumns:          { min: 1, max: 3, step: 1 },
   sideColumnWidth:      { min: 20, max: 40, step: 0.1 },
   sideShelfCount:       { min: 3, max: 8, step: 1 },
@@ -43,14 +46,55 @@ export const DRESSING_INTERIOR_OPTIONS: { id: DressingInteriorType; name: string
 ];
 
 // ===== DEFAULTS =====
-function defaultModule(width = 100, interiorType: DressingInteriorType = 'bara-raft'): DressingModuleConfig {
+let _sectionIdSeq = 1;
+function newSectionId(): string {
+  _sectionIdSeq += 1;
+  return `sec-${Date.now().toString(36)}-${_sectionIdSeq}`;
+}
+
+/** Genereaza sectiunile implicite pentru un tip de interior */
+export function sectionsForInteriorType(type: DressingInteriorType, bodyHeightCm = 180): DressingModuleSection[] {
+  switch (type) {
+    case 'rafturi':
+      // 5 compartimente egale separate de 4 rafturi: o singura sectiune de shelves cu 4 rafturi interioare
+      return [
+        { id: newSectionId(), type: 'shelves', heightCm: bodyHeightCm, shelfCount: 4 },
+      ];
+    case 'bara-raft':
+      // Raft jos (45cm) + bara sus (rest)
+      return [
+        { id: newSectionId(), type: 'shelves',     heightCm: 45,  shelfCount: 0 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: Math.max(60, bodyHeightCm - 45) },
+      ];
+    case 'mixt':
+      // Sertare jos (50cm) + raft intermediar implicit + bara sus
+      return [
+        { id: newSectionId(), type: 'drawers',     heightCm: 50,  drawerCount: 2 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: Math.max(60, bodyHeightCm - 50) },
+      ];
+    case 'rafturi-deschise':
+    default:
+      return [
+        { id: newSectionId(), type: 'shelves', heightCm: bodyHeightCm, shelfCount: 5 },
+      ];
+  }
+}
+
+function defaultModule(width = 100, interiorType: DressingInteriorType = 'bara-raft', bodyHeightCm = 180): DressingModuleConfig {
   return {
     width,
     interiorType,
+    sections: sectionsForInteriorType(interiorType, bodyHeightCm),
     hasDoors: false,  // start cu usile ascunse ca clientul sa vada interiorul
     hasTopCompartment: true,
     topCompartmentHeight: 40,
   };
+}
+
+/** Hydreaza sectiuni daca un modul vine fara ele (backward-compat cu presets/persisted state) */
+function ensureSections(m: DressingModuleConfig, bodyHeightCm = 180): DressingModuleConfig {
+  if (m.sections && m.sections.length > 0) return m;
+  return { ...m, sections: sectionsForInteriorType(m.interiorType, bodyHeightCm) };
 }
 
 // ===== PRESETS (preconfigurari moderne) =====
@@ -145,7 +189,7 @@ export const DRESSING_PRESETS: DressingPreset[] = [
 
 const defaultConfig: DressingUnitConfig = {
   moduleCount: 3,
-  modules: DRESSING_PRESETS[0].modules.map((m) => ({ ...m })),
+  modules: DRESSING_PRESETS[0].modules.map((m) => ensureSections({ ...m }, DRESSING_PRESETS[0].totalHeight - DRESSING_PRESETS[0].plinthHeight - (m.hasTopCompartment ? m.topCompartmentHeight : 0))),
   sideShelves: { ...DRESSING_PRESETS[0].sideShelves },
   totalWidth: 270,
   totalHeight: DRESSING_PRESETS[0].totalHeight,
@@ -177,7 +221,11 @@ function resizeModules(modules: DressingModuleConfig[], count: number): Dressing
   if (modules.length === count) return modules;
   if (modules.length > count) return modules.slice(0, count);
   const template = modules[modules.length - 1] || defaultModule();
-  const extra = Array.from({ length: count - modules.length }, () => ({ ...template }));
+  const extra = Array.from({ length: count - modules.length }, () => ({
+    ...template,
+    // sectiunile trebuie sa aiba id-uri unice — regeneram din preset
+    sections: sectionsForInteriorType(template.interiorType, 180),
+  }));
   return [...modules, ...extra];
 }
 
@@ -235,22 +283,48 @@ export function calculateDressingUnitPrice(config: DressingUnitConfig) {
       topCompartmentCost += m.width * m.topCompartmentHeight * 0.02 * bodyMul; // spate
     }
 
-    switch (m.interiorType) {
-      case 'bara-raft':
-        interiorCost += m.width * config.depth * 0.008 * bodyMul;
-        interiorCost += 60;
-        break;
-      case 'rafturi':
-        interiorCost += 4 * m.width * config.depth * 0.008 * bodyMul;
-        break;
-      case 'mixt':
-        interiorCost += m.width * config.depth * 0.008 * bodyMul;
-        interiorCost += 60;
-        interiorCost += 2 * 80 * bodyMul;
-        break;
-      case 'rafturi-deschise':
-        interiorCost += 6 * m.width * config.depth * 0.01 * bodyMul;
-        break;
+    if (m.sections && m.sections.length > 0) {
+      // Cost bazat pe sectiuni (mai fidel pt build-your-own)
+      const sepCount = Math.max(0, m.sections.length - 1);
+      interiorCost += sepCount * m.width * config.depth * 0.008 * bodyMul; // separatoare intre sectiuni
+      for (const sec of m.sections) {
+        switch (sec.type) {
+          case 'shelves': {
+            const n = Math.max(0, sec.shelfCount ?? 0);
+            interiorCost += n * m.width * config.depth * 0.008 * bodyMul;
+            break;
+          }
+          case 'hanging-rod':
+            interiorCost += 60; // bara metalica + suporti
+            break;
+          case 'drawers': {
+            const n = Math.max(1, sec.drawerCount ?? 1);
+            interiorCost += n * 80 * bodyMul; // front sertar + glisiere
+            break;
+          }
+          case 'empty':
+          default:
+            break;
+        }
+      }
+    } else {
+      switch (m.interiorType) {
+        case 'bara-raft':
+          interiorCost += m.width * config.depth * 0.008 * bodyMul;
+          interiorCost += 60;
+          break;
+        case 'rafturi':
+          interiorCost += 4 * m.width * config.depth * 0.008 * bodyMul;
+          break;
+        case 'mixt':
+          interiorCost += m.width * config.depth * 0.008 * bodyMul;
+          interiorCost += 60;
+          interiorCost += 2 * 80 * bodyMul;
+          break;
+        case 'rafturi-deschise':
+          interiorCost += 6 * m.width * config.depth * 0.01 * bodyMul;
+          break;
+      }
     }
 
     // Toate modulele au usi structural (hasDoors controleaza doar vizibilitatea in 3D)
@@ -331,6 +405,11 @@ interface DressingUnitState {
   toggleModuleDoors: (index: number) => void;
   toggleModuleTopCompartment: (index: number) => void;
   setModuleTopCompartmentHeight: (index: number, v: number) => void;
+
+  addModuleSection: (index: number, type: DressingSectionType) => void;
+  removeModuleSection: (index: number, sectionId: string) => void;
+  updateModuleSection: (index: number, sectionId: string, patch: Partial<DressingModuleSection>) => void;
+  moveModuleSection: (index: number, sectionId: string, direction: 'up' | 'down') => void;
 
   setSideShelvesPosition: (p: DressingSidePosition) => void;
   setSideShelvesColumns: (n: number) => void;
@@ -455,7 +534,73 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
   },
 
   setModuleInterior: (index, type) => {
-    updateModule(set, get, index, (m) => ({ ...m, interiorType: type }));
+    const prev = get().config;
+    const m = prev.modules[index];
+    if (!m) return;
+    const bodyH = prev.totalHeight - prev.plinthHeight - (m.hasTopCompartment ? m.topCompartmentHeight : 0);
+    updateModule(set, get, index, (mm) => ({
+      ...mm,
+      interiorType: type,
+      sections: sectionsForInteriorType(type, Math.max(80, bodyH)),
+    }));
+  },
+
+  addModuleSection: (index, type) => {
+    const prev = get().config;
+    const m = prev.modules[index];
+    if (!m) return;
+    const sections = m.sections ? [...m.sections] : [];
+    const defaults: Record<DressingSectionType, Partial<DressingModuleSection>> = {
+      'drawers':     { heightCm: 45, drawerCount: 2 },
+      'shelves':     { heightCm: 80, shelfCount: 2 },
+      'hanging-rod': { heightCm: 110 },
+      'empty':       { heightCm: 40 },
+    };
+    const base = defaults[type];
+    sections.push({ id: newSectionId(), type, heightCm: 40, ...base } as DressingModuleSection);
+    updateModule(set, get, index, (mm) => ({ ...mm, sections }));
+  },
+
+  removeModuleSection: (index, sectionId) => {
+    const prev = get().config;
+    const m = prev.modules[index];
+    if (!m || !m.sections) return;
+    if (m.sections.length <= 1) return; // pastram macar o sectiune
+    const sections = m.sections.filter((s) => s.id !== sectionId);
+    updateModule(set, get, index, (mm) => ({ ...mm, sections }));
+  },
+
+  updateModuleSection: (index, sectionId, patch) => {
+    const prev = get().config;
+    const m = prev.modules[index];
+    if (!m || !m.sections) return;
+    const sections = m.sections.map((s) => {
+      if (s.id !== sectionId) return s;
+      const merged = { ...s, ...patch } as DressingModuleSection;
+      // validari per tip
+      if (merged.type === 'drawers') {
+        merged.drawerCount = clamp(Math.round(merged.drawerCount ?? 2), DRESSING_UNIT_LIMITS.drawerCount.min, DRESSING_UNIT_LIMITS.drawerCount.max);
+      }
+      if (merged.type === 'shelves') {
+        merged.shelfCount = clamp(Math.round(merged.shelfCount ?? 2), DRESSING_UNIT_LIMITS.sectionShelfCount.min, DRESSING_UNIT_LIMITS.sectionShelfCount.max);
+      }
+      merged.heightCm = clamp(Math.round(merged.heightCm), DRESSING_UNIT_LIMITS.sectionHeight.min, DRESSING_UNIT_LIMITS.sectionHeight.max);
+      return merged;
+    });
+    updateModule(set, get, index, (mm) => ({ ...mm, sections }));
+  },
+
+  moveModuleSection: (index, sectionId, direction) => {
+    const prev = get().config;
+    const m = prev.modules[index];
+    if (!m || !m.sections) return;
+    const i = m.sections.findIndex((s) => s.id === sectionId);
+    if (i < 0) return;
+    const j = direction === 'up' ? i + 1 : i - 1; // bottom-to-top: "up" = index+1
+    if (j < 0 || j >= m.sections.length) return;
+    const sections = [...m.sections];
+    [sections[i], sections[j]] = [sections[j], sections[i]];
+    updateModule(set, get, index, (mm) => ({ ...mm, sections }));
   },
 
   toggleModuleDoors: (index) => {
@@ -500,10 +645,14 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     const preset = DRESSING_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
     const prev = get().config;
+    const bodyH = preset.totalHeight - preset.plinthHeight;
     commit(set, {
       ...prev,
       moduleCount: preset.modules.length,
-      modules: preset.modules.map((m) => ({ ...m })),
+      modules: preset.modules.map((m) => ensureSections(
+        { ...m },
+        Math.max(80, bodyH - (m.hasTopCompartment ? m.topCompartmentHeight : 0)),
+      )),
       sideShelves: { ...preset.sideShelves },
       totalHeight: preset.totalHeight,
       depth: preset.depth,

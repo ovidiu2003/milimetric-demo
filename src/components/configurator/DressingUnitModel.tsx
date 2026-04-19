@@ -457,6 +457,7 @@ function ModuleGroup(props: ModuleProps) {
       {/* Interior — main body */}
       <ModuleInterior
         type={module.interiorType}
+        sections={module.sections}
         innerLeftX={innerLeftX}
         innerRightX={innerRightX}
         innerCenterX={innerCenterX}
@@ -498,20 +499,143 @@ function ModuleGroup(props: ModuleProps) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Interior layouts
+// Interior layouts — based on sections (stacked bottom-to-top)
 // ──────────────────────────────────────────────────────────────
 function ModuleInterior({
-  type, innerLeftX, innerRightX, innerCenterX, innerBottomY, innerTopY,
+  type, sections, innerLeftX, innerRightX, innerCenterX, innerBottomY, innerTopY,
   innerW, innerH, D, T,
   bodyMatProps, bodyMatPropsH, frontMatProps, HANDLE_COLOR,
 }: {
   type: 'bara-raft' | 'rafturi' | 'mixt' | 'rafturi-deschise';
+  sections?: import('@/types').DressingModuleSection[];
   innerLeftX: number; innerRightX: number; innerCenterX: number;
   innerBottomY: number; innerTopY: number;
   innerW: number; innerH: number;
   D: number; T: number;
   bodyMatProps: any; bodyMatPropsH: any; frontMatProps: any;
   HANDLE_COLOR: string;
+}) {
+  // Fallback la prezentarea veche daca modulul nu are sectiuni
+  if (!sections || sections.length === 0) {
+    return (
+      <LegacyModuleInterior
+        type={type}
+        innerCenterX={innerCenterX}
+        innerBottomY={innerBottomY}
+        innerW={innerW} innerH={innerH}
+        D={D} T={T}
+        bodyMatPropsH={bodyMatPropsH}
+        frontMatProps={frontMatProps}
+      />
+    );
+  }
+
+  const S = 0.01;
+  // Suma inaltimilor sectiunilor in unitati Three
+  const totalSectCm = sections.reduce((s, sec) => s + Math.max(1, sec.heightCm), 0);
+  const scale = Math.min(1, innerH / (totalSectCm * S)); // scalam daca depasim (pastram proportiile)
+  const effectiveScale = totalSectCm * S <= innerH ? (innerH / (totalSectCm * S)) : scale;
+  // Strategie: sectiunile umplu intotdeauna interiorul (proportional), ca sa nu ramana goluri ciudate
+  // Daca user-ul vrea gol, adauga sectiune 'empty'
+
+  let cursorY = innerBottomY; // incepem de la baza interiorului
+  const nodes: React.ReactNode[] = [];
+
+  sections.forEach((sec, i) => {
+    const h = Math.max(1, sec.heightCm) * S * effectiveScale;
+    const y0 = cursorY;
+    const y1 = y0 + h;
+    const yMid = (y0 + y1) / 2;
+
+    // Separator orizontal la partea de sus a sectiunii (exceptand ultima)
+    const isLast = i === sections.length - 1;
+
+    switch (sec.type) {
+      case 'shelves': {
+        const count = Math.max(0, Math.min(6, sec.shelfCount ?? 2));
+        if (count > 0) {
+          const spacing = h / (count + 1);
+          for (let k = 0; k < count; k++) {
+            const y = y0 + (k + 1) * spacing;
+            nodes.push(
+              <mesh key={`${sec.id}-sh-${k}`} position={[innerCenterX, y, 0]} castShadow receiveShadow>
+                <boxGeometry args={[innerW, T, D - T]} />
+                <meshStandardMaterial {...bodyMatPropsH} />
+                <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
+              </mesh>
+            );
+          }
+        }
+        break;
+      }
+      case 'hanging-rod': {
+        // Bara la ~85% din inaltimea sectiunii
+        const barY = y0 + h * 0.85;
+        nodes.push(
+          <mesh key={`${sec.id}-bar`} position={[innerCenterX, barY, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+            <cylinderGeometry args={[0.012, 0.012, innerW, 16]} />
+            <meshStandardMaterial color="#b8b8b8" metalness={0.7} roughness={0.3} />
+          </mesh>
+        );
+        break;
+      }
+      case 'drawers': {
+        const dc = Math.max(1, Math.min(5, sec.drawerCount ?? 2));
+        const gap = 0.002;
+        const drawerH = (h - (dc - 1) * gap) / dc;
+        for (let k = 0; k < dc; k++) {
+          const dY = y0 + drawerH / 2 + k * (drawerH + gap);
+          nodes.push(
+            <HoverDrawer key={`${sec.id}-dw-${k}`} panelWidth={innerW}>
+              <mesh position={[innerCenterX, dY, D / 2 - T / 2]} castShadow>
+                <boxGeometry args={[innerW - 0.01, drawerH - 0.004, T]} />
+                <meshStandardMaterial {...frontMatProps} />
+                <Edges threshold={15} color="#2a2218" lineWidth={1} />
+              </mesh>
+              {/* maner metalic orizontal mic */}
+              <mesh position={[innerCenterX, dY, D / 2 + T / 2 + 0.003]}>
+                <boxGeometry args={[Math.min(0.16, innerW * 0.3), 0.008, 0.006]} />
+                <meshStandardMaterial color={HANDLE_COLOR} metalness={0.5} roughness={0.4} />
+              </mesh>
+            </HoverDrawer>
+          );
+        }
+        break;
+      }
+      case 'empty':
+      default:
+        // compartiment gol — fara continut
+        break;
+    }
+
+    // Separator orizontal (polita) la tranzitia intre sectiuni
+    if (!isLast) {
+      nodes.push(
+        <mesh key={`${sec.id}-sep`} position={[innerCenterX, y1, 0]} castShadow receiveShadow>
+          <boxGeometry args={[innerW, T, D - T]} />
+          <meshStandardMaterial {...bodyMatPropsH} />
+          <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
+        </mesh>
+      );
+    }
+
+    cursorY = y1 + (isLast ? 0 : T);
+  });
+
+  return <group>{nodes}</group>;
+}
+
+// Vechiul renderer (folosit ca fallback pt module fara sectiuni definite)
+function LegacyModuleInterior({
+  type, innerCenterX, innerBottomY,
+  innerW, innerH, D, T,
+  bodyMatPropsH, frontMatProps,
+}: {
+  type: 'bara-raft' | 'rafturi' | 'mixt' | 'rafturi-deschise';
+  innerCenterX: number; innerBottomY: number;
+  innerW: number; innerH: number;
+  D: number; T: number;
+  bodyMatPropsH: any; frontMatProps: any;
 }) {
   if (type === 'rafturi-deschise') {
     // Modul deschis tip biblioteca — 6 rafturi vizibile, fara spate vizibil la fronturi
