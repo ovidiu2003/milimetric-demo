@@ -4,6 +4,7 @@ export type FurnitureCategory =
   | 'biblioteci'      // Bookcases & Shelving
   | 'comode'          // Cabinets & Sideboards
   | 'dulapuri'        // Closets, Cupboards & Wardrobes
+  | 'dressing'        // Dressing Rooms & Walk-in Closets
   | 'mese'            // Tables
   | 'masute-cafea'    // Coffee Tables
   | 'suspendat'       // Hanging/Wall-mount Furniture
@@ -196,6 +197,46 @@ export interface LivingUnitConfig {
   // Materials
   bodyMaterialId: string;    // material for body + comoda fronts + shelving
   frontMaterialId: string;   // material for dulap front (door)
+}
+
+// ===== DRESSING UNIT CONFIGURATOR =====
+
+export type DressingInteriorType = 'bara-raft' | 'rafturi' | 'mixt' | 'rafturi-deschise';
+
+export interface DressingModuleConfig {
+  width: number;                      // cm — individual module width (80..120)
+  interiorType: DressingInteriorType; // interior layout preset
+  hasDoors: boolean;                  // closed with doors (vertical handle) or open
+  hasTopCompartment: boolean;         // optional small storage box above main body
+  topCompartmentHeight: number;       // cm — height of the top compartment (30..60)
+}
+
+export type DressingSidePosition = 'none' | 'left' | 'right' | 'both';
+
+export interface DressingSideShelvesConfig {
+  position: DressingSidePosition;     // pe ce parte se ataseaza biblioteca laterala
+  columns: number;                    // 1 sau 2 coloane inguste (per side)
+  columnWidth: number;                // cm — latimea unei coloane (20..40)
+  shelfCount: number;                 // numar de rafturi vizibile per coloana (3..8)
+}
+
+export interface DressingUnitConfig {
+  // Modules
+  moduleCount: number;       // number of modules side-by-side (1..6)
+  modules: DressingModuleConfig[]; // per-module settings, length == moduleCount
+
+  // Optional side shelving extension (biblioteca laterala)
+  sideShelves: DressingSideShelvesConfig;
+
+  // Overall dimensions (totalWidth is auto = sum of module widths + side shelves)
+  totalWidth: number;        // cm — auto-calculated
+  totalHeight: number;       // cm — floor to top (including plinth + top compartment if any)
+  depth: number;             // cm — depth of the unit
+  plinthHeight: number;      // cm — base plinth height (0 = no plinth)
+
+  // Materials
+  bodyMaterialId: string;
+  frontMaterialId: string;
 }
 
 // ===== BLOG / JOURNAL =====

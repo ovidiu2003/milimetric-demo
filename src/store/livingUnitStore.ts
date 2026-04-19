@@ -136,10 +136,20 @@ function clamp(v: number, min: number, max: number) {
   return Math.min(Math.max(v, min), max);
 }
 
-function calculateComodaColumns(widthCm: number) {
-  const minColumnWidth = 30; // 300 mm
-  const columns = Math.max(2, Math.floor(widthCm / minColumnWidth));
-  return Math.min(columns, LIVING_UNIT_LIMITS.comodaColumns.max);
+const MIN_COMODA_COLUMN_WIDTH = 30; // 300 mm
+
+function calculateMaxComodaColumns(widthCm: number) {
+  return Math.min(
+    LIVING_UNIT_LIMITS.comodaColumns.max,
+    Math.max(2, Math.floor(widthCm / MIN_COMODA_COLUMN_WIDTH))
+  );
+}
+
+function clampComodaColumns(columns: number, widthCm: number) {
+  return Math.min(
+    Math.max(columns, LIVING_UNIT_LIMITS.comodaColumns.min),
+    calculateMaxComodaColumns(widthCm)
+  );
 }
 
 export const useLivingUnitStore = create<LivingUnitState>((set, get) => ({
@@ -167,14 +177,15 @@ export const useLivingUnitStore = create<LivingUnitState>((set, get) => ({
     const prev = get().config;
     const val = clamp(v, LIVING_UNIT_LIMITS.comodaWidth.min, LIVING_UNIT_LIMITS.comodaWidth.max);
     const updated = { ...prev, comodaWidth: val };
-    updated.comodaColumns = calculateComodaColumns(val);
+    updated.comodaColumns = clampComodaColumns(prev.comodaColumns, val);
     updated.totalWidth = recalcTotalWidth(updated);
     set({ config: updated, price: calculateLivingUnitPrice(updated) });
   },
 
   setComodaColumns: (v) => {
     const prev = get().config;
-    const val = clamp(v, LIVING_UNIT_LIMITS.comodaColumns.min, LIVING_UNIT_LIMITS.comodaColumns.max);
+    const requested = clamp(v, LIVING_UNIT_LIMITS.comodaColumns.min, LIVING_UNIT_LIMITS.comodaColumns.max);
+    const val = clampComodaColumns(requested, prev.comodaWidth);
     const config = { ...prev, comodaColumns: val };
     set({ config, price: calculateLivingUnitPrice(config) });
   },
@@ -224,7 +235,7 @@ export const useLivingUnitStore = create<LivingUnitState>((set, get) => ({
     const updated = { ...prev };
     if (prev.comodaWidth >= towerW) {
       updated.comodaWidth = val;
-      updated.comodaColumns = calculateComodaColumns(val);
+      updated.comodaColumns = clampComodaColumns(prev.comodaColumns, val);
     } else {
       const targetDulap = clamp(val - prev.raftWidth, LIVING_UNIT_LIMITS.dulapWidth.min, LIVING_UNIT_LIMITS.dulapWidth.max);
       updated.dulapWidth = targetDulap;

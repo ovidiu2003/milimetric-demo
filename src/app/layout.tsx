@@ -6,7 +6,7 @@ import Footer from '@/components/layout/Footer';
 export const metadata: Metadata = {
   metadataBase: new URL('https://milimetric.ro'),
   title: 'milimetric — Mobilier la Comandă',
-  description: 'Mobilier creat cu răbdare și precizie, pe gustul tău. Configurează-ți mobilierul perfect — biblioteci, comode, dulapuri, mese — totul la comandă, la milimetru.',
+  description: 'Mobilier creat cu răbdare și precizie, pe gustul tău. Configurează-ți mobilierul perfect — biblioteci, comode, dulapuri, dressing-uri, mese — totul la comandă, la milimetru.',
   keywords: 'mobilier la comandă, configurator mobilier, mobilier personalizat, biblioteci, dulapuri, comode, mese, România',
   openGraph: {
     title: 'milimetric — Mobilier la Comandă',

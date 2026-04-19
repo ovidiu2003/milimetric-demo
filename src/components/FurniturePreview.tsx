@@ -42,7 +42,7 @@ interface FurniturePreviewProps {
 
 /**
  * SVG-based 2D furniture preview that renders based on item configPreset.
- * Supports: biblioteci, comode, dulapuri, suspendat, hol (compartment grid)
+ * Supports: biblioteci, comode, dulapuri, dressing, suspendat, hol (compartment grid)
  *           mese, masute-cafea (table shapes)
  */
 export default function FurniturePreview({ item, className = '' }: FurniturePreviewProps) {
