@@ -500,6 +500,8 @@ function ModuleGroup(props: ModuleProps) {
 
 // ──────────────────────────────────────────────────────────────
 // Interior layouts — based on sections (stacked bottom-to-top)
+// Sectiunile sunt in cm. Storul garanteaza: sum(heightCm) = interiorHeight.
+// Randerul foloseste inaltimi reale — fara scalare "magica".
 // ──────────────────────────────────────────────────────────────
 function ModuleInterior({
   type, sections, innerLeftX, innerRightX, innerCenterX, innerBottomY, innerTopY,
@@ -531,28 +533,28 @@ function ModuleInterior({
   }
 
   const S = 0.01;
-  // Suma inaltimilor sectiunilor in unitati Three
-  const totalSectCm = sections.reduce((s, sec) => s + Math.max(1, sec.heightCm), 0);
-  const scale = Math.min(1, innerH / (totalSectCm * S)); // scalam daca depasim (pastram proportiile)
-  const effectiveScale = totalSectCm * S <= innerH ? (innerH / (totalSectCm * S)) : scale;
-  // Strategie: sectiunile umplu intotdeauna interiorul (proportional), ca sa nu ramana goluri ciudate
-  // Daca user-ul vrea gol, adauga sectiune 'empty'
+  // Calculam pozitiile reale (cu separatoare de grosime T intre sectiuni)
+  // Daca suma sectiunilor + separatoare != innerH, scalam fin pt compensare
+  const totalSectM = sections.reduce((s, sec) => s + sec.heightCm * S, 0);
+  const separatorsCount = sections.length - 1;
+  const separatorsTotal = separatorsCount * T;
+  const requestedTotal = totalSectM + separatorsTotal;
+  // Factor de corectie (ar trebui sa fie ~1, mic delta din rotunjirea cm -> m)
+  const fitScale = requestedTotal > 0 ? innerH / requestedTotal : 1;
 
-  let cursorY = innerBottomY; // incepem de la baza interiorului
+  let cursorY = innerBottomY;
   const nodes: React.ReactNode[] = [];
 
   sections.forEach((sec, i) => {
-    const h = Math.max(1, sec.heightCm) * S * effectiveScale;
+    const h = Math.max(0.01, sec.heightCm * S * fitScale);
     const y0 = cursorY;
     const y1 = y0 + h;
     const yMid = (y0 + y1) / 2;
-
-    // Separator orizontal la partea de sus a sectiunii (exceptand ultima)
     const isLast = i === sections.length - 1;
 
     switch (sec.type) {
       case 'shelves': {
-        const count = Math.max(0, Math.min(6, sec.shelfCount ?? 2));
+        const count = Math.max(0, Math.min(6, sec.shelfCount ?? 0));
         if (count > 0) {
           const spacing = h / (count + 1);
           for (let k = 0; k < count; k++) {
@@ -569,33 +571,60 @@ function ModuleInterior({
         break;
       }
       case 'hanging-rod': {
-        // Bara la ~85% din inaltimea sectiunii
-        const barY = y0 + h * 0.85;
+        // Bara metalica aproape de tavanul sectiunii (real-life: ~4cm sub panou)
+        const barY = y1 - 0.04; // 4cm sub panou
+        // Suporti laterali (flanse metalice mici pe laterale)
         nodes.push(
-          <mesh key={`${sec.id}-bar`} position={[innerCenterX, barY, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
-            <cylinderGeometry args={[0.012, 0.012, innerW, 16]} />
-            <meshStandardMaterial color="#b8b8b8" metalness={0.7} roughness={0.3} />
-          </mesh>
+          <group key={`${sec.id}-bar`}>
+            <mesh position={[innerCenterX, barY, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+              <cylinderGeometry args={[0.014, 0.014, innerW - 0.01, 20]} />
+              <meshStandardMaterial color="#c2c4c8" metalness={0.8} roughness={0.25} />
+            </mesh>
+            {/* Flanse */}
+            <mesh position={[innerLeftOf(innerCenterX, innerW) + 0.005, barY, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+              <cylinderGeometry args={[0.022, 0.022, 0.01, 16]} />
+              <meshStandardMaterial color="#9ca0a6" metalness={0.7} roughness={0.3} />
+            </mesh>
+            <mesh position={[innerRightOf(innerCenterX, innerW) - 0.005, barY, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+              <cylinderGeometry args={[0.022, 0.022, 0.01, 16]} />
+              <meshStandardMaterial color="#9ca0a6" metalness={0.7} roughness={0.3} />
+            </mesh>
+          </group>
         );
         break;
       }
       case 'drawers': {
         const dc = Math.max(1, Math.min(5, sec.drawerCount ?? 2));
-        const gap = 0.002;
+        const gap = 0.003;                     // 3mm gap intre sertare
         const drawerH = (h - (dc - 1) * gap) / dc;
         for (let k = 0; k < dc; k++) {
           const dY = y0 + drawerH / 2 + k * (drawerH + gap);
           nodes.push(
             <HoverDrawer key={`${sec.id}-dw-${k}`} panelWidth={innerW}>
+              {/* Frontul sertarului — aliniat cu frontul corpului */}
               <mesh position={[innerCenterX, dY, D / 2 - T / 2]} castShadow>
-                <boxGeometry args={[innerW - 0.01, drawerH - 0.004, T]} />
+                <boxGeometry args={[innerW - 0.004, drawerH - 0.002, T]} />
                 <meshStandardMaterial {...frontMatProps} />
                 <Edges threshold={15} color="#2a2218" lineWidth={1} />
               </mesh>
-              {/* maner metalic orizontal mic */}
-              <mesh position={[innerCenterX, dY, D / 2 + T / 2 + 0.003]}>
-                <boxGeometry args={[Math.min(0.16, innerW * 0.3), 0.008, 0.006]} />
-                <meshStandardMaterial color={HANDLE_COLOR} metalness={0.5} roughness={0.4} />
+              {/* Cutia sertarului (pereti vizibili dinspre exterior la glisare) */}
+              <mesh position={[innerCenterX, dY - drawerH * 0.05, -0.02]} castShadow receiveShadow>
+                <boxGeometry args={[innerW - 0.02, drawerH * 0.85, D - 0.04]} />
+                <meshStandardMaterial color="#e4dbc8" roughness={0.8} metalness={0.05} />
+              </mesh>
+              {/* Maner metalic orizontal aliniat la mijloc */}
+              <mesh position={[innerCenterX, dY, D / 2 + T / 2 + 0.004]}>
+                <boxGeometry args={[Math.min(0.18, innerW * 0.32), 0.01, 0.008]} />
+                <meshStandardMaterial color={HANDLE_COLOR} metalness={0.55} roughness={0.35} />
+              </mesh>
+              {/* Suport maner (2 mici) */}
+              <mesh position={[innerCenterX - Math.min(0.08, innerW * 0.14), dY, D / 2 + T / 2 + 0.002]}>
+                <boxGeometry args={[0.006, 0.006, 0.006]} />
+                <meshStandardMaterial color={HANDLE_COLOR} metalness={0.6} roughness={0.3} />
+              </mesh>
+              <mesh position={[innerCenterX + Math.min(0.08, innerW * 0.14), dY, D / 2 + T / 2 + 0.002]}>
+                <boxGeometry args={[0.006, 0.006, 0.006]} />
+                <meshStandardMaterial color={HANDLE_COLOR} metalness={0.6} roughness={0.3} />
               </mesh>
             </HoverDrawer>
           );
@@ -604,14 +633,13 @@ function ModuleInterior({
       }
       case 'empty':
       default:
-        // compartiment gol — fara continut
         break;
     }
 
-    // Separator orizontal (polita) la tranzitia intre sectiuni
+    // Separator intre sectiuni (panou orizontal) — nu si sub ultima
     if (!isLast) {
       nodes.push(
-        <mesh key={`${sec.id}-sep`} position={[innerCenterX, y1, 0]} castShadow receiveShadow>
+        <mesh key={`${sec.id}-sep`} position={[innerCenterX, y1 + T / 2, 0]} castShadow receiveShadow>
           <boxGeometry args={[innerW, T, D - T]} />
           <meshStandardMaterial {...bodyMatPropsH} />
           <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
@@ -624,6 +652,10 @@ function ModuleInterior({
 
   return <group>{nodes}</group>;
 }
+
+// Helpers pentru flansele barelor (calcul rapid al extremelor interioare)
+function innerLeftOf(cx: number, w: number)  { return cx - w / 2; }
+function innerRightOf(cx: number, w: number) { return cx + w / 2; }
 
 // Vechiul renderer (folosit ca fallback pt module fara sectiuni definite)
 function LegacyModuleInterior({

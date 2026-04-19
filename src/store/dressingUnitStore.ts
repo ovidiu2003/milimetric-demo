@@ -7,6 +7,8 @@ export type DressingUnitStep = 'parameters' | 'materials' | 'summary';
 const STEPS: DressingUnitStep[] = ['parameters', 'materials', 'summary'];
 
 // ===== CONSTRAINTS =====
+export const PANEL_T_CM = 1.8;  // grosime panou (corespunde T=1.8cm real)
+
 export const DRESSING_UNIT_LIMITS = {
   moduleCount:          { min: 1, max: 6, step: 1 },
   moduleWidth:          { min: 30, max: 150, step: 0.1 },
@@ -15,13 +17,29 @@ export const DRESSING_UNIT_LIMITS = {
   depth:                { min: 50, max: 65, step: 0.1 },
   plinthHeight:         { min: 0, max: 15, step: 0.1 },
   topCompartmentHeight: { min: 25, max: 60, step: 0.1 },
-  sectionHeight:        { min: 20, max: 220, step: 1 },   // cm — inaltime sectiune in modul
+  sectionHeight:        { min: 15, max: 240, step: 1 },    // cm — inaltime sectiune (min = drawer minim realist)
   drawerCount:          { min: 1, max: 5, step: 1 },
   sectionShelfCount:    { min: 0, max: 6, step: 1 },
   sideColumns:          { min: 1, max: 3, step: 1 },
   sideColumnWidth:      { min: 20, max: 40, step: 0.1 },
   sideShelfCount:       { min: 3, max: 8, step: 1 },
 } as const;
+
+/** Inaltime minima realista per tip de sectiune (cm) */
+export const SECTION_MIN_HEIGHT: Record<DressingSectionType, number> = {
+  'drawers':     24,  // min 1 sertar util (12cm x 2 spatii)
+  'shelves':     20,  // min un compartiment deschis
+  'hanging-rod': 60,  // min pt haine scurte (bluze, camasi)
+  'empty':       20,
+};
+
+/** Inaltime implicita "nou adaugata" per tip (cm) */
+export const SECTION_DEFAULT_HEIGHT: Record<DressingSectionType, number> = {
+  'drawers':     45,  // 2 sertare standard
+  'shelves':     60,  // 2-3 compartimente
+  'hanging-rod': 100, // haine medii
+  'empty':       40,
+};
 
 export const DRESSING_SIDE_POSITION_OPTIONS: { id: DressingSidePosition; name: string }[] = [
   { id: 'none',  name: 'Fără bibliotecă laterală' },
@@ -53,29 +71,30 @@ function newSectionId(): string {
 }
 
 /** Genereaza sectiunile implicite pentru un tip de interior */
-export function sectionsForInteriorType(type: DressingInteriorType, bodyHeightCm = 180): DressingModuleSection[] {
+export function sectionsForInteriorType(type: DressingInteriorType, interiorHeightCm = 180): DressingModuleSection[] {
+  const H = Math.max(60, interiorHeightCm);
   switch (type) {
     case 'rafturi':
-      // 5 compartimente egale separate de 4 rafturi: o singura sectiune de shelves cu 4 rafturi interioare
+      // 1 singura sectiune de shelves ocupand tot spatiul, cu 4 rafturi interioare
       return [
-        { id: newSectionId(), type: 'shelves', heightCm: bodyHeightCm, shelfCount: 4 },
+        { id: newSectionId(), type: 'shelves', heightCm: H, shelfCount: 4 },
       ];
     case 'bara-raft':
       // Raft jos (45cm) + bara sus (rest)
       return [
-        { id: newSectionId(), type: 'shelves',     heightCm: 45,  shelfCount: 0 },
-        { id: newSectionId(), type: 'hanging-rod', heightCm: Math.max(60, bodyHeightCm - 45) },
+        { id: newSectionId(), type: 'shelves',     heightCm: 45,       shelfCount: 0 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: H - 45 },
       ];
     case 'mixt':
-      // Sertare jos (50cm) + raft intermediar implicit + bara sus
+      // Sertare jos (50cm) + bara sus (rest)
       return [
-        { id: newSectionId(), type: 'drawers',     heightCm: 50,  drawerCount: 2 },
-        { id: newSectionId(), type: 'hanging-rod', heightCm: Math.max(60, bodyHeightCm - 50) },
+        { id: newSectionId(), type: 'drawers',     heightCm: 50,       drawerCount: 2 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: H - 50 },
       ];
     case 'rafturi-deschise':
     default:
       return [
-        { id: newSectionId(), type: 'shelves', heightCm: bodyHeightCm, shelfCount: 5 },
+        { id: newSectionId(), type: 'shelves', heightCm: H, shelfCount: 5 },
       ];
   }
 }
@@ -201,6 +220,102 @@ const defaultConfig: DressingUnitConfig = {
 
 function clamp(v: number, min: number, max: number) {
   return Math.min(Math.max(v, min), max);
+}
+
+// ===== SECTION GEOMETRY HELPERS =====
+
+/** Inaltimea utila (cm) in care intra secțiunile unui modul (intre panoul de jos si cel de sus al corpului). */
+export function moduleInteriorHeight(cfg: DressingUnitConfig, m: DressingModuleConfig): number {
+  const topH = m.hasTopCompartment ? m.topCompartmentHeight : 0;
+  return Math.max(40, cfg.totalHeight - cfg.plinthHeight - topH - 2 * PANEL_T_CM);
+}
+
+function sumSectionsH(sections: DressingModuleSection[]): number {
+  return sections.reduce((s, sec) => s + sec.heightCm, 0);
+}
+
+function sectionMinH(sec: DressingModuleSection): number {
+  return Math.max(DRESSING_UNIT_LIMITS.sectionHeight.min, SECTION_MIN_HEIGHT[sec.type]);
+}
+
+/** Rescaleaza proportional toate sectiunile sa insumeze exact `targetH`, cu respectarea minimelor. */
+function normalizeSections(sections: DressingModuleSection[], targetH: number): DressingModuleSection[] {
+  if (sections.length === 0) return sections;
+  const n = sections.length;
+  const target = Math.max(n * DRESSING_UNIT_LIMITS.sectionHeight.min, Math.round(targetH));
+  const mins = sections.map(sectionMinH);
+  const minSum = mins.reduce((a, b) => a + b, 0);
+  if (target <= minSum) {
+    // Nu incape — setam totul la min; primul capata restul eventual (capat)
+    const r = sections.map((s, i) => ({ ...s, heightCm: mins[i] }));
+    // Adjust ultima sectiune ca totalul sa = target (chiar daca < minSum pt siguranta)
+    const diff = target - r.reduce((a, s) => a + s.heightCm, 0);
+    r[r.length - 1] = { ...r[r.length - 1], heightCm: Math.max(DRESSING_UNIT_LIMITS.sectionHeight.min, r[r.length - 1].heightCm + diff) };
+    return r;
+  }
+  const currentSum = sumSectionsH(sections);
+  if (Math.abs(currentSum - target) < 0.5) {
+    return sections.map((s) => ({ ...s, heightCm: Math.round(s.heightCm) }));
+  }
+  // Scaling proportional cu respectarea minimelor
+  // Metoda: initial proportional, apoi ajustam iterativ pt min-clamped
+  let scaled = sections.map((s, i) => ({ ...s, heightCm: Math.max(mins[i], Math.round((s.heightCm / Math.max(1, currentSum)) * target)) }));
+  // Drift correction
+  let drift = target - sumSectionsH(scaled);
+  let safety = 20;
+  while (drift !== 0 && safety-- > 0) {
+    // distribuim drift pe sectiunile cu heightCm > min (putem lua) sau pe toate (putem da)
+    const candidateIdxs = drift > 0
+      ? scaled.map((_, i) => i)   // crestem oriunde
+      : scaled.map((_, i) => i).filter((i) => scaled[i].heightCm > mins[i]);
+    if (candidateIdxs.length === 0) break;
+    const step = drift > 0 ? 1 : -1;
+    for (const i of candidateIdxs) {
+      if (drift === 0) break;
+      const next = scaled[i].heightCm + step;
+      if (next < mins[i]) continue;
+      scaled[i] = { ...scaled[i], heightCm: next };
+      drift -= step;
+    }
+  }
+  return scaled;
+}
+
+/** Redistribuie un delta (pozitiv sau negativ) pe sectiunile indicate, respectand minimele. */
+function distributeSectionDelta(sections: DressingModuleSection[], skipIdx: number, deltaToAdd: number): DressingModuleSection[] {
+  const MAX = DRESSING_UNIT_LIMITS.sectionHeight.max;
+  const result = sections.map((s) => ({ ...s }));
+  let remaining = deltaToAdd;
+  let free = result.map((_, i) => i).filter((i) => i !== skipIdx);
+  let safety = 20;
+  while (free.length > 0 && Math.abs(remaining) >= 1 && safety-- > 0) {
+    const share = remaining / free.length;
+    const nextFree: number[] = [];
+    let consumed = 0;
+    for (const i of free) {
+      const min = sectionMinH(result[i]);
+      const target = result[i].heightCm + share;
+      const clamped = Math.max(min, Math.min(MAX, target));
+      consumed += clamped - result[i].heightCm;
+      result[i] = { ...result[i], heightCm: Math.round(clamped) };
+      if (clamped > min + 0.5 && clamped < MAX - 0.5) nextFree.push(i);
+    }
+    remaining -= consumed;
+    if (nextFree.length === free.length) break;
+    free = nextFree;
+  }
+  return result;
+}
+
+/** Asigura ca toate modulele au sectiunile normalizate la moduleInteriorHeight. */
+function normalizeAllModuleSections(cfg: DressingUnitConfig): DressingUnitConfig {
+  const modules = cfg.modules.map((m) => {
+    const target = moduleInteriorHeight(cfg, m);
+    let sections = (m.sections && m.sections.length > 0) ? m.sections : sectionsForInteriorType(m.interiorType, target);
+    sections = normalizeSections(sections, target);
+    return { ...m, sections };
+  });
+  return { ...cfg, modules };
 }
 
 export function sideShelvesWidth(cfg: DressingUnitConfig): number {
@@ -430,7 +545,8 @@ interface DressingUnitState {
 }
 
 function commit(set: any, config: DressingUnitConfig) {
-  const normalized = { ...config, totalWidth: recalcTotalWidth(config) };
+  const withSections = normalizeAllModuleSections(config);
+  const normalized = { ...withSections, totalWidth: recalcTotalWidth(withSections) };
   set({ config: normalized, price: calculateDressingUnitPrice(normalized) });
 }
 
@@ -537,11 +653,11 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     const prev = get().config;
     const m = prev.modules[index];
     if (!m) return;
-    const bodyH = prev.totalHeight - prev.plinthHeight - (m.hasTopCompartment ? m.topCompartmentHeight : 0);
+    const interiorH = moduleInteriorHeight(prev, m);
     updateModule(set, get, index, (mm) => ({
       ...mm,
       interiorType: type,
-      sections: sectionsForInteriorType(type, Math.max(80, bodyH)),
+      sections: sectionsForInteriorType(type, interiorH),
     }));
   },
 
@@ -549,15 +665,34 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     const prev = get().config;
     const m = prev.modules[index];
     if (!m) return;
-    const sections = m.sections ? [...m.sections] : [];
+    const current = m.sections || [];
+    const target = moduleInteriorHeight(prev, m);
+    const desired = SECTION_DEFAULT_HEIGHT[type];
+    const minNew = SECTION_MIN_HEIGHT[type];
+    // Cat loc putem elibera din celelalte (total - sum(mins))?
+    const currentMinSum = current.reduce((s, sec) => s + sectionMinH(sec), 0);
+    const currentSum = sumSectionsH(current);
+    const available = Math.max(0, currentSum - currentMinSum); // cat pot da celelalte
+    if (available < minNew) return; // nu intra — operatie silentios ignorata
+    const newHeight = Math.min(desired, available);
+
+    // Creez sectiunea noua
     const defaults: Record<DressingSectionType, Partial<DressingModuleSection>> = {
-      'drawers':     { heightCm: 45, drawerCount: 2 },
-      'shelves':     { heightCm: 80, shelfCount: 2 },
-      'hanging-rod': { heightCm: 110 },
-      'empty':       { heightCm: 40 },
+      'drawers':     { drawerCount: 2 },
+      'shelves':     { shelfCount: 2 },
+      'hanging-rod': {},
+      'empty':       {},
     };
-    const base = defaults[type];
-    sections.push({ id: newSectionId(), type, heightCm: 40, ...base } as DressingModuleSection);
+    const newSec: DressingModuleSection = {
+      id: newSectionId(),
+      type,
+      heightCm: newHeight,
+      ...defaults[type],
+    };
+    // Redistribuie -newHeight pe sectiunile existente (proportional)
+    const reduced = distributeSectionDelta(current, -1, -newHeight);
+    // Insereaza noua sectiune sus (la capatul array-ului = sus vizual)
+    const sections = [...reduced, newSec];
     updateModule(set, get, index, (mm) => ({ ...mm, sections }));
   },
 
@@ -566,25 +701,72 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     const m = prev.modules[index];
     if (!m || !m.sections) return;
     if (m.sections.length <= 1) return; // pastram macar o sectiune
-    const sections = m.sections.filter((s) => s.id !== sectionId);
-    updateModule(set, get, index, (mm) => ({ ...mm, sections }));
+    const removed = m.sections.find((s) => s.id === sectionId);
+    if (!removed) return;
+    const remaining = m.sections.filter((s) => s.id !== sectionId);
+    // Redistribuie inaltimea sectiunii sterse pe celelalte (proportional la cat au deja)
+    const sumRem = sumSectionsH(remaining);
+    const scaled = remaining.map((s) => ({
+      ...s,
+      heightCm: Math.round(s.heightCm + (removed.heightCm * (s.heightCm / Math.max(1, sumRem)))),
+    }));
+    updateModule(set, get, index, (mm) => ({ ...mm, sections: scaled }));
   },
 
   updateModuleSection: (index, sectionId, patch) => {
     const prev = get().config;
     const m = prev.modules[index];
     if (!m || !m.sections) return;
+    const idx = m.sections.findIndex((s) => s.id === sectionId);
+    if (idx < 0) return;
+    const current = m.sections[idx];
+
+    // Cazul heightCm: redistribuim delta pe celelalte ca totalul sa se pastreze
+    if (patch.heightCm !== undefined) {
+      const target = moduleInteriorHeight(prev, m);
+      const MIN = sectionMinH(current);
+      // maximum = target - suma minimelor celorlalte (ca sa ramana loc pentru ele)
+      const othersMin = m.sections.reduce((s, sec, i) => (i === idx ? s : s + sectionMinH(sec)), 0);
+      const MAX = Math.min(DRESSING_UNIT_LIMITS.sectionHeight.max, target - othersMin);
+      const newH = clamp(Math.round(patch.heightCm), MIN, Math.max(MIN, MAX));
+      const delta = newH - current.heightCm;
+      if (delta === 0) return;
+      // Redistribuim -delta pe celelalte
+      const withNew = m.sections.map((s, i) => (i === idx ? { ...s, heightCm: newH } : s));
+      const redistributed = distributeSectionDelta(withNew, idx, -delta);
+      // Asiguram ca sectiunea tinta are exact newH
+      redistributed[idx] = { ...redistributed[idx], heightCm: newH };
+      // Drift correction pe prima alta sectiune libera
+      const driftTarget = target - sumSectionsH(redistributed);
+      if (Math.abs(driftTarget) >= 1) {
+        for (let j = 0; j < redistributed.length; j++) {
+          if (j === idx) continue;
+          const adj = redistributed[j].heightCm + driftTarget;
+          const minJ = sectionMinH(redistributed[j]);
+          if (adj >= minJ && adj <= DRESSING_UNIT_LIMITS.sectionHeight.max) {
+            redistributed[j] = { ...redistributed[j], heightCm: Math.round(adj) };
+            break;
+          }
+        }
+      }
+      updateModule(set, get, index, (mm) => ({ ...mm, sections: redistributed }));
+      return;
+    }
+
+    // Alte patch-uri (drawerCount, shelfCount, type): aplicam direct cu validare
     const sections = m.sections.map((s) => {
       if (s.id !== sectionId) return s;
       const merged = { ...s, ...patch } as DressingModuleSection;
-      // validari per tip
       if (merged.type === 'drawers') {
         merged.drawerCount = clamp(Math.round(merged.drawerCount ?? 2), DRESSING_UNIT_LIMITS.drawerCount.min, DRESSING_UNIT_LIMITS.drawerCount.max);
-      }
-      if (merged.type === 'shelves') {
+        delete (merged as any).shelfCount;
+      } else if (merged.type === 'shelves') {
         merged.shelfCount = clamp(Math.round(merged.shelfCount ?? 2), DRESSING_UNIT_LIMITS.sectionShelfCount.min, DRESSING_UNIT_LIMITS.sectionShelfCount.max);
+        delete (merged as any).drawerCount;
+      } else {
+        delete (merged as any).drawerCount;
+        delete (merged as any).shelfCount;
       }
-      merged.heightCm = clamp(Math.round(merged.heightCm), DRESSING_UNIT_LIMITS.sectionHeight.min, DRESSING_UNIT_LIMITS.sectionHeight.max);
       return merged;
     });
     updateModule(set, get, index, (mm) => ({ ...mm, sections }));

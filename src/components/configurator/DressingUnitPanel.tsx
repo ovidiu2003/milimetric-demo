@@ -18,6 +18,9 @@ import {
   DRESSING_SIDE_LAYOUT_OPTIONS,
   DRESSING_PRESETS,
   DressingUnitStep,
+  SECTION_MIN_HEIGHT,
+  SECTION_DEFAULT_HEIGHT,
+  moduleInteriorHeight,
 } from '@/store/dressingUnitStore';
 import { DressingInteriorType, DressingSidePosition, DressingSideLayout, DressingSectionType, DressingModuleSection } from '@/types';
 import { materialTypes, getBodyMaterials, getFrontMaterials, getMaterialById } from '@/data/materials';
@@ -181,125 +184,200 @@ function LayoutPreview({ layout, active }: { layout: DressingSideLayout; active:
 
 // ──────────────────────────────────────────────
 // Section editor — per-module custom vertical sections
+// Culori si hint-uri real-life pt fiecare tip
 // ──────────────────────────────────────────────
-const SECTION_TYPE_META: Record<DressingSectionType, { label: string; icon: React.ReactNode; short: string }> = {
-  'drawers':     { label: 'Sertare',      icon: <Rows3 className="w-3.5 h-3.5" />,     short: 'Ser.' },
-  'shelves':     { label: 'Rafturi',      icon: <Layers className="w-3.5 h-3.5" />,    short: 'Raft.' },
-  'hanging-rod': { label: 'Bară haine',   icon: <Minus className="w-3.5 h-3.5" />,     short: 'Bară' },
-  'empty':       { label: 'Spațiu gol',   icon: <Square className="w-3.5 h-3.5" />,    short: 'Gol' },
+const SECTION_TYPE_META: Record<DressingSectionType, {
+  label: string;
+  icon: React.ReactNode;
+  short: string;
+  color: string;    // Tailwind token — folosit pt fond si bara preview
+  hint: string;
+}> = {
+  'drawers':     { label: 'Sertare',      icon: <Rows3 className="w-3.5 h-3.5" />,   short: 'Ser.',  color: 'amber',   hint: 'Real-life: 12–20cm per sertar util. 2–3 sertare = 40–60cm total.' },
+  'shelves':     { label: 'Rafturi',      icon: <Layers className="w-3.5 h-3.5" />,  short: 'Raft.', color: 'sky',     hint: 'Spațiere recomandată ~30cm per raft pentru tricouri / pulovere împăturite.' },
+  'hanging-rod': { label: 'Bară haine',   icon: <Minus className="w-3.5 h-3.5" />,   short: 'Bară',  color: 'emerald', hint: 'Cămăși: 80–100cm. Costume: 120–140cm. Haine lungi: 150cm+.' },
+  'empty':       { label: 'Spațiu gol',   icon: <Square className="w-3.5 h-3.5" />,  short: 'Gol',   color: 'slate',   hint: 'Compartiment deschis pentru bagaje, coșuri, obiecte înalte.' },
 };
 
+const SECTION_COLOR_CLASSES: Record<string, { bg: string; text: string; border: string; barBg: string }> = {
+  amber:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   barBg: 'bg-amber-300' },
+  sky:     { bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-sky-200',     barBg: 'bg-sky-300' },
+  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', barBg: 'bg-emerald-300' },
+  slate:   { bg: 'bg-slate-50',   text: 'text-slate-600',   border: 'border-slate-200',   barBg: 'bg-slate-300' },
+};
+
+// Mini preview vertical al sectiunilor (de sus in jos, ca in 3D)
+function SectionsPreviewColumn({ sections, availableCm }: { sections: DressingModuleSection[]; availableCm: number }) {
+  const totalCm = sections.reduce((s, sec) => s + sec.heightCm, 0);
+  const base = Math.max(totalCm, availableCm, 1);
+  return (
+    <div className="relative w-7 flex flex-col-reverse rounded border border-brand-beige/40 bg-brand-cream/40 overflow-hidden" style={{ height: 130 }}>
+      {sections.map((sec) => {
+        const meta = SECTION_TYPE_META[sec.type];
+        const c = SECTION_COLOR_CLASSES[meta.color];
+        const pct = (sec.heightCm / base) * 100;
+        return (
+          <div
+            key={sec.id}
+            className={`${c.barBg} border-t border-white/70 flex items-center justify-center`}
+            style={{ height: `${pct}%` }}
+            title={`${meta.label} · ${sec.heightCm}cm`}
+          >
+            <span className="text-white/90 text-[8px] font-bold drop-shadow">{meta.short}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SectionEditor({
-  moduleIndex, sections, onAdd, onRemove, onUpdate, onMove,
+  moduleIndex, sections, availableCm,
+  onAdd, onRemove, onUpdate, onMove,
 }: {
   moduleIndex: number;
   sections: DressingModuleSection[];
+  availableCm: number;   // inaltime totala utila a modulului (interior)
   onAdd: (type: DressingSectionType) => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, patch: Partial<DressingModuleSection>) => void;
   onMove: (id: string, dir: 'up' | 'down') => void;
 }) {
   const totalCm = sections.reduce((s, sec) => s + sec.heightCm, 0);
+  const sumMins = sections.reduce((s, sec) => s + Math.max(DRESSING_UNIT_LIMITS.sectionHeight.min, SECTION_MIN_HEIGHT[sec.type]), 0);
+  const freeSpace = Math.max(0, totalCm - sumMins); // cat pot lua celelalte pt o noua sectiune
+  const balanced = Math.abs(totalCm - availableCm) < 2;
 
   return (
-    <div className="space-y-1.5 pt-1">
-      <div className="flex items-center justify-between mb-0.5">
+    <div className="space-y-2 pt-1">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <label className="text-[10px] uppercase tracking-wider text-brand-charcoal/55 font-semibold flex items-center gap-1">
           <Component className="w-3 h-3" />
           Secțiuni personalizate
         </label>
-        <span className="text-[9.5px] text-brand-charcoal/40 tabular-nums">
-          total ≈ {totalCm} cm
-        </span>
+        <div className="flex items-center gap-1.5 text-[10px] tabular-nums">
+          <span className={`font-semibold ${balanced ? 'text-emerald-600' : 'text-amber-600'}`}>{totalCm}cm</span>
+          <span className="text-brand-charcoal/30">/</span>
+          <span className="text-brand-charcoal/50">{availableCm}cm</span>
+          {balanced && <Check className="w-3 h-3 text-emerald-500" />}
+        </div>
       </div>
 
-      {/* Lista sectiuni — de sus (ultimul din array = top) in jos */}
-      <div className="space-y-1">
-        {[...sections].reverse().map((sec) => {
-          const realIdx = sections.findIndex((s) => s.id === sec.id);
-          const meta = SECTION_TYPE_META[sec.type];
-          const isTop = realIdx === sections.length - 1;
-          const isBottom = realIdx === 0;
-          return (
-            <div
-              key={sec.id}
-              className="rounded-md border border-brand-beige/40 bg-white px-2 py-1.5 hover:border-brand-accent/40 transition-colors"
-            >
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-dark">
-                  <span className="text-brand-accent">{meta.icon}</span>
-                  {meta.label}
-                </span>
-                <div className="ml-auto flex items-center gap-0.5">
-                  <button
-                    onClick={() => onMove(sec.id, 'up')}
-                    disabled={isTop}
-                    title="Mută în sus"
-                    className="p-0.5 rounded hover:bg-brand-beige/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ArrowUp className="w-3 h-3 text-brand-charcoal/60" />
-                  </button>
-                  <button
-                    onClick={() => onMove(sec.id, 'down')}
-                    disabled={isBottom}
-                    title="Mută în jos"
-                    className="p-0.5 rounded hover:bg-brand-beige/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ArrowDown className="w-3 h-3 text-brand-charcoal/60" />
-                  </button>
-                  <button
-                    onClick={() => onRemove(sec.id)}
-                    disabled={sections.length <= 1}
-                    title="Șterge secțiunea"
-                    className="p-0.5 rounded hover:bg-red-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Trash2 className="w-3 h-3 text-red-500/70" />
-                  </button>
+      {/* Editor + Preview column */}
+      <div className="flex gap-2">
+        {/* Lista sectiuni — de sus (ultimul din array = top) in jos */}
+        <div className="flex-1 space-y-1">
+          {[...sections].reverse().map((sec) => {
+            const realIdx = sections.findIndex((s) => s.id === sec.id);
+            const meta = SECTION_TYPE_META[sec.type];
+            const c = SECTION_COLOR_CLASSES[meta.color];
+            const isTop = realIdx === sections.length - 1;
+            const isBottom = realIdx === 0;
+            const minH = Math.max(DRESSING_UNIT_LIMITS.sectionHeight.min, SECTION_MIN_HEIGHT[sec.type]);
+            // max = total - sum(mins ale celorlalte)
+            const otherMinsSum = sections.filter((ss) => ss.id !== sec.id).reduce((s, ss) => s + Math.max(DRESSING_UNIT_LIMITS.sectionHeight.min, SECTION_MIN_HEIGHT[ss.type]), 0);
+            const maxH = Math.min(DRESSING_UNIT_LIMITS.sectionHeight.max, availableCm - otherMinsSum);
+            return (
+              <div
+                key={sec.id}
+                className={`rounded-md border ${c.border} ${c.bg} px-2 py-1.5 transition-colors`}
+              >
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${c.text}`}>
+                    {meta.icon}
+                    {meta.label}
+                  </span>
+                  <span className="ml-1 text-[9.5px] tabular-nums text-brand-charcoal/50 font-medium">
+                    {sec.heightCm}cm
+                  </span>
+                  <div className="ml-auto flex items-center gap-0.5">
+                    <button
+                      onClick={() => onMove(sec.id, 'up')}
+                      disabled={isTop}
+                      title="Mută în sus"
+                      className="p-0.5 rounded hover:bg-white/70 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ArrowUp className="w-3 h-3 text-brand-charcoal/60" />
+                    </button>
+                    <button
+                      onClick={() => onMove(sec.id, 'down')}
+                      disabled={isBottom}
+                      title="Mută în jos"
+                      className="p-0.5 rounded hover:bg-white/70 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ArrowDown className="w-3 h-3 text-brand-charcoal/60" />
+                    </button>
+                    <button
+                      onClick={() => onRemove(sec.id)}
+                      disabled={sections.length <= 1}
+                      title="Șterge secțiunea"
+                      className="p-0.5 rounded hover:bg-red-50 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3 text-red-500/70" />
+                    </button>
+                  </div>
                 </div>
+
+                <ParamSlider
+                  label="Înălțime"
+                  value={sec.heightCm}
+                  min={minH}
+                  max={Math.max(minH, maxH)}
+                  step={1}
+                  unit="cm"
+                  onChange={(v) => onUpdate(sec.id, { heightCm: v })}
+                />
+
+                {sec.type === 'drawers' && (
+                  <ParamSlider
+                    label="Număr sertare"
+                    value={sec.drawerCount ?? 2}
+                    {...DRESSING_UNIT_LIMITS.drawerCount}
+                    unit="buc"
+                    onChange={(v) => onUpdate(sec.id, { drawerCount: v })}
+                  />
+                )}
+
+                {sec.type === 'shelves' && (
+                  <ParamSlider
+                    label="Rafturi interioare"
+                    value={sec.shelfCount ?? 2}
+                    {...DRESSING_UNIT_LIMITS.sectionShelfCount}
+                    unit="buc"
+                    onChange={(v) => onUpdate(sec.id, { shelfCount: v })}
+                  />
+                )}
               </div>
+            );
+          })}
+        </div>
 
-              <ParamSlider
-                label="Înălțime"
-                value={sec.heightCm}
-                {...DRESSING_UNIT_LIMITS.sectionHeight}
-                unit="cm"
-                onChange={(v) => onUpdate(sec.id, { heightCm: v })}
-              />
-
-              {sec.type === 'drawers' && (
-                <ParamSlider
-                  label="Număr sertare"
-                  value={sec.drawerCount ?? 2}
-                  {...DRESSING_UNIT_LIMITS.drawerCount}
-                  unit="buc"
-                  onChange={(v) => onUpdate(sec.id, { drawerCount: v })}
-                />
-              )}
-
-              {sec.type === 'shelves' && (
-                <ParamSlider
-                  label="Rafturi interioare"
-                  value={sec.shelfCount ?? 2}
-                  {...DRESSING_UNIT_LIMITS.sectionShelfCount}
-                  unit="buc"
-                  onChange={(v) => onUpdate(sec.id, { shelfCount: v })}
-                />
-              )}
-            </div>
-          );
-        })}
+        {/* Mini preview vertical */}
+        <div className="pt-0.5">
+          <SectionsPreviewColumn sections={sections} availableCm={availableCm} />
+        </div>
       </div>
 
-      {/* Butoane adaugare */}
+      {/* Butoane adaugare — cu validare de spatiu disponibil */}
       <div className="grid grid-cols-4 gap-1 pt-0.5">
         {(Object.keys(SECTION_TYPE_META) as DressingSectionType[]).map((t) => {
           const meta = SECTION_TYPE_META[t];
+          const cColor = SECTION_COLOR_CLASSES[meta.color];
+          const minNeeded = SECTION_MIN_HEIGHT[t];
+          const desiredAdd = Math.min(SECTION_DEFAULT_HEIGHT[t], freeSpace);
+          const canAdd = freeSpace >= minNeeded;
           return (
             <button
               key={t}
-              onClick={() => onAdd(t)}
-              title={`Adaugă ${meta.label.toLowerCase()}`}
-              className="flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-md border border-dashed border-brand-beige/60 bg-white/60 hover:border-brand-accent/60 hover:bg-brand-accent/5 text-brand-charcoal/70 hover:text-brand-accent transition-all"
+              onClick={() => canAdd && onAdd(t)}
+              disabled={!canAdd}
+              title={canAdd ? `Adaugă ${meta.label.toLowerCase()} (~${desiredAdd}cm)` : `Nu mai este loc (min ${minNeeded}cm)`}
+              className={`flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-md border border-dashed transition-all ${
+                canAdd
+                  ? `${cColor.border} bg-white/60 hover:${cColor.bg} hover:${cColor.text} text-brand-charcoal/75`
+                  : 'border-brand-beige/30 bg-brand-beige/10 text-brand-charcoal/25 cursor-not-allowed'
+              }`}
             >
               <span className="inline-flex items-center gap-0.5">
                 <Plus className="w-2.5 h-2.5" />
@@ -312,9 +390,16 @@ function SectionEditor({
           );
         })}
       </div>
-      <p className="text-[9.5px] text-brand-charcoal/40 leading-tight italic">
-        Secțiunile sunt stivuite de sus în jos exact ca în vizualizarea 3D. Schimbă ordinea cu săgețile.
-      </p>
+
+      {/* Hint real-life pt ultima sectiune editata */}
+      <div className="rounded-md bg-brand-beige/20 border border-brand-beige/40 px-2 py-1.5 space-y-0.5">
+        <p className="text-[10px] text-brand-charcoal/70 font-semibold">Ghid real-life:</p>
+        <ul className="text-[9.5px] text-brand-charcoal/55 leading-snug space-y-0.5 list-disc list-inside">
+          <li>Sertare: 12–20 cm per sertar util</li>
+          <li>Rafturi: ~30 cm între rafturi</li>
+          <li>Cămăși: 80–100 cm / Haine lungi: 150 cm+</li>
+        </ul>
+      </div>
     </div>
   );
 }
@@ -531,6 +616,7 @@ function ParametersStep() {
                     <SectionEditor
                       moduleIndex={i}
                       sections={m.sections || []}
+                      availableCm={Math.round(moduleInteriorHeight(c, m))}
                       onAdd={(t) => addModuleSection(i, t)}
                       onRemove={(id) => removeModuleSection(i, id)}
                       onUpdate={(id, patch) => updateModuleSection(i, id, patch)}
