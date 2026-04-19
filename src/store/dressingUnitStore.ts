@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { DressingUnitConfig, DressingInteriorType, DressingModuleConfig, DressingSidePosition } from '@/types';
+import { DressingUnitConfig, DressingInteriorType, DressingModuleConfig, DressingSidePosition, DressingSideLayout } from '@/types';
 import { getMaterialById } from '@/data/materials';
 
 // ===== STEP TYPES =====
@@ -15,7 +15,7 @@ export const DRESSING_UNIT_LIMITS = {
   depth:                { min: 50, max: 65, step: 0.1 },
   plinthHeight:         { min: 0, max: 15, step: 0.1 },
   topCompartmentHeight: { min: 25, max: 60, step: 0.1 },
-  sideColumns:          { min: 1, max: 2, step: 1 },
+  sideColumns:          { min: 1, max: 3, step: 1 },
   sideColumnWidth:      { min: 20, max: 40, step: 0.1 },
   sideShelfCount:       { min: 3, max: 8, step: 1 },
 } as const;
@@ -25,6 +25,13 @@ export const DRESSING_SIDE_POSITION_OPTIONS: { id: DressingSidePosition; name: s
   { id: 'left',  name: 'Doar pe stânga' },
   { id: 'right', name: 'Doar pe dreapta' },
   { id: 'both',  name: 'Pe ambele părți' },
+];
+
+export const DRESSING_SIDE_LAYOUT_OPTIONS: { id: DressingSideLayout; name: string; description: string }[] = [
+  { id: 'uniform',   name: 'Uniform',    description: 'Polițe distanțate egal, aspect clasic și ordonat.' },
+  { id: 'asimetric', name: 'Asimetric',  description: 'Polițe aranjate în zigzag între coloane, ritm dinamic.' },
+  { id: 'galerie',   name: 'Galerie',    description: 'Fiecare coloană are propriul său pattern, ca un display de galerie.' },
+  { id: 'vitrina',   name: 'Vitrină',    description: 'Compartiment mare jos pentru decor, spațiere în creștere spre vârf.' },
 ];
 
 // ===== INTERIOR PRESETS =====
@@ -55,7 +62,7 @@ export interface DressingPreset {
   totalHeight: number;
   depth: number;
   plinthHeight: number;
-  sideShelves: { position: 'none' | 'left' | 'right' | 'both'; columns: number; columnWidth: number; shelfCount: number };
+  sideShelves: { position: 'none' | 'left' | 'right' | 'both'; columns: number; columnWidth: number; shelfCount: number; layout: 'uniform' | 'asimetric' | 'galerie' | 'vitrina' };
 }
 
 export const DRESSING_PRESETS: DressingPreset[] = [
@@ -71,37 +78,37 @@ export const DRESSING_PRESETS: DressingPreset[] = [
     totalHeight: 230,
     depth: 58,
     plinthHeight: 8,
-    sideShelves: { position: 'none', columns: 2, columnWidth: 28, shelfCount: 5 },
+    sideShelves: { position: 'none', columns: 2, columnWidth: 28, shelfCount: 5, layout: 'uniform' },
   },
   {
     id: 'minimal-walkin',
     name: 'Minimal Walk-In',
     description: 'Patru module largi, ritmic aranjate, fără compartimente superioare.',
     modules: [
-      { width: 100, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
-      { width: 100, interiorType: 'mixt',      hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
-      { width: 100, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
-      { width: 100, interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
+      { width: 100, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 40 },
+      { width: 100, interiorType: 'mixt',      hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 40 },
+      { width: 100, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 40 },
+      { width: 100, interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 40 },
     ],
     totalHeight: 240,
     depth: 60,
     plinthHeight: 6,
-    sideShelves: { position: 'none', columns: 2, columnWidth: 28, shelfCount: 5 },
+    sideShelves: { position: 'none', columns: 2, columnWidth: 28, shelfCount: 5, layout: 'uniform' },
   },
   {
     id: 'gallery-open',
     name: 'Gallery Open',
     description: 'Compoziție dinamică cu module mixte pentru un aspect rafinat.',
     modules: [
-      { width: 70,  interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
+      { width: 70,  interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 40 },
       { width: 100, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: true,  topCompartmentHeight: 40 },
       { width: 100, interiorType: 'mixt',      hasDoors: false, hasTopCompartment: true,  topCompartmentHeight: 40 },
-      { width: 70,  interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
+      { width: 70,  interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 40 },
     ],
     totalHeight: 245,
     depth: 60,
     plinthHeight: 8,
-    sideShelves: { position: 'none', columns: 2, columnWidth: 28, shelfCount: 5 },
+    sideShelves: { position: 'none', columns: 2, columnWidth: 28, shelfCount: 5, layout: 'uniform' },
   },
   {
     id: 'boutique-suite',
@@ -116,7 +123,7 @@ export const DRESSING_PRESETS: DressingPreset[] = [
     totalHeight: 260,
     depth: 62,
     plinthHeight: 10,
-    sideShelves: { position: 'right', columns: 3, columnWidth: 32, shelfCount: 6 },
+    sideShelves: { position: 'right', columns: 3, columnWidth: 32, shelfCount: 6, layout: 'galerie' },
   },
   {
     id: 'atelier-wide',
@@ -132,7 +139,7 @@ export const DRESSING_PRESETS: DressingPreset[] = [
     totalHeight: 250,
     depth: 60,
     plinthHeight: 8,
-    sideShelves: { position: 'both', columns: 2, columnWidth: 30, shelfCount: 5 },
+    sideShelves: { position: 'both', columns: 2, columnWidth: 30, shelfCount: 5, layout: 'asimetric' },
   },
 ];
 
@@ -329,6 +336,7 @@ interface DressingUnitState {
   setSideShelvesColumns: (n: number) => void;
   setSideShelvesColumnWidth: (v: number) => void;
   setSideShelvesShelfCount: (n: number) => void;
+  setSideShelvesLayout: (layout: DressingSideLayout) => void;
 
   applyPreset: (presetId: string) => void;
   toggleAllDoors: () => void;
@@ -455,7 +463,8 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
   },
 
   toggleModuleTopCompartment: (index) => {
-    updateModule(set, get, index, (m) => ({ ...m, hasTopCompartment: !m.hasTopCompartment }));
+    // Compartimentul superior este obligatoriu — no-op pastrat pentru compatibilitate
+    updateModule(set, get, index, (m) => ({ ...m, hasTopCompartment: true }));
   },
 
   setModuleTopCompartmentHeight: (index, v) => {
@@ -481,6 +490,10 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     const prev = get().config;
     const val = clamp(Math.round(n), DRESSING_UNIT_LIMITS.sideShelfCount.min, DRESSING_UNIT_LIMITS.sideShelfCount.max);
     commit(set, { ...prev, sideShelves: { ...prev.sideShelves, shelfCount: val } });
+  },
+  setSideShelvesLayout: (layout) => {
+    const prev = get().config;
+    commit(set, { ...prev, sideShelves: { ...prev.sideShelves, layout } });
   },
 
   applyPreset: (presetId) => {

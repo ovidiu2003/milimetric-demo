@@ -240,6 +240,27 @@
 .animate-module-expand > *:nth-child(2) { animation-delay: 80ms; }
 .animate-module-expand > *:nth-child(3) { animation-delay: 120ms; }
 
+/* ── Subtle pulse for CTA buttons ── */
+@keyframes pulseSubtle {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(180, 140, 80, 0.0); }
+  50%      { box-shadow: 0 0 0 4px rgba(180, 140, 80, 0.12); }
+}
+.animate-pulse-subtle {
+  animation: pulseSubtle 2.2s ease-in-out infinite;
+}
+
+@keyframes pulseStrong {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(180, 140, 80, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(180, 140, 80, 0);
+  }
+}
+.animate-pulse-strong {
+  animation: pulseStrong 2s ease-out infinite;
+}
+
 /* Stagger children in material grids */
 .animate-stagger > * {
   animation: fadeSlideIn 0.2s ease-out both;

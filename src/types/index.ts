@@ -213,11 +213,14 @@ export interface DressingModuleConfig {
 
 export type DressingSidePosition = 'none' | 'left' | 'right' | 'both';
 
+export type DressingSideLayout = 'uniform' | 'asimetric' | 'galerie' | 'vitrina';
+
 export interface DressingSideShelvesConfig {
   position: DressingSidePosition;     // pe ce parte se ataseaza biblioteca laterala
   columns: number;                    // 1 sau 2 coloane inguste (per side)
   columnWidth: number;                // cm — latimea unei coloane (20..40)
   shelfCount: number;                 // numar de rafturi vizibile per coloana (3..8)
+  layout: DressingSideLayout;         // aranjamentul politelor
 }
 
 export interface DressingUnitConfig {

@@ -13,10 +13,11 @@ import {
   DRESSING_UNIT_LIMITS,
   DRESSING_INTERIOR_OPTIONS,
   DRESSING_SIDE_POSITION_OPTIONS,
+  DRESSING_SIDE_LAYOUT_OPTIONS,
   DRESSING_PRESETS,
   DressingUnitStep,
 } from '@/store/dressingUnitStore';
-import { DressingInteriorType, DressingSidePosition } from '@/types';
+import { DressingInteriorType, DressingSidePosition, DressingSideLayout } from '@/types';
 import { materialTypes, getBodyMaterials, getFrontMaterials, getMaterialById } from '@/data/materials';
 import { useTextures } from '@/hooks/useTextures';
 import OfferRequestModal from '@/components/configurator/OfferRequestModal';
@@ -104,14 +105,86 @@ function ParamSlider({
 // ──────────────────────────────────────────────
 // STEP 1: Parameters
 // ──────────────────────────────────────────────
+function LayoutPreview({ layout, active }: { layout: DressingSideLayout; active: boolean }) {
+  const cols = 2;
+  const n = 4;
+  const fracs = (col: number): number[] => {
+    const safeN = Math.max(1, n);
+    if (layout === 'uniform') return Array.from({ length: safeN }, (_, i) => (i + 1) / (safeN + 1));
+    if (layout === 'asimetric') {
+      const easeOut = (t: number) => 1 - Math.pow(1 - t, 1.8);
+      const easeIn  = (t: number) => Math.pow(t, 1.8);
+      const fn = col % 2 === 0 ? easeOut : easeIn;
+      return Array.from({ length: safeN }, (_, i) => fn((i + 1) / (safeN + 1)));
+    }
+    if (layout === 'galerie') {
+      const phase = (col % 3) * (Math.PI / 2.5);
+      return Array.from({ length: safeN }, (_, i) => {
+        const base = (i + 1) / (safeN + 1);
+        const wave = Math.sin(i * 1.3 + phase) * 0.06;
+        return Math.max(0.05, Math.min(0.95, base + wave));
+      }).sort((a, b) => a - b);
+    }
+    if (layout === 'vitrina') {
+      if (safeN === 1) return [0.4];
+      const bottom = 0.32;
+      const remaining = 1 - bottom;
+      const res: number[] = [bottom];
+      let acc = bottom;
+      const margin = 0.05;
+      const target = remaining - margin;
+      const rRatio = 0.82;
+      const nGaps = safeN - 1;
+      const sumR = (1 - Math.pow(rRatio, nGaps)) / (1 - rRatio);
+      const k = target / sumR;
+      for (let i = 0; i < nGaps; i++) {
+        acc += k * Math.pow(rRatio, i);
+        res.push(Math.min(0.95, acc));
+      }
+      return res;
+    }
+    return [];
+  };
+  const W = 28;
+  const H = 22;
+  const stroke = active ? '#b48c50' : '#3a3228';
+  const bg = active ? '#fdf5e9' : '#f5f1ea';
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="shrink-0 ml-1">
+      <rect x={0.5} y={0.5} width={W - 1} height={H - 1} fill={bg} stroke={stroke} strokeWidth={0.7} rx={1.5} />
+      {/* vertical divider */}
+      <line x1={W / 2} y1={1} x2={W / 2} y2={H - 1} stroke={stroke} strokeWidth={0.5} opacity={0.5} />
+      {/* shelves per column */}
+      {Array.from({ length: cols }, (_, col) => {
+        const x0 = col === 0 ? 1.5 : W / 2 + 0.5;
+        const x1 = col === 0 ? W / 2 - 0.5 : W - 1.5;
+        const ys = fracs(col);
+        // fraction 0 = bottom; SVG y is top, so y = H - H*f
+        return ys.map((f, i) => (
+          <line
+            key={`${col}-${i}`}
+            x1={x0}
+            x2={x1}
+            y1={H - H * f}
+            y2={H - H * f}
+            stroke={stroke}
+            strokeWidth={1.1}
+            strokeLinecap="round"
+          />
+        ));
+      })}
+    </svg>
+  );
+}
+
 function ParametersStep() {
   const c = useDressingUnitStore((s) => s.config);
   const {
     setModuleCount, setTotalModulesWidth, setTotalHeight, setDepth, setPlinthHeight,
     setModuleWidth, setModuleInterior, toggleModuleDoors,
-    toggleModuleTopCompartment, setModuleTopCompartmentHeight,
+    setModuleTopCompartmentHeight,
     setSideShelvesPosition, setSideShelvesColumns,
-    setSideShelvesColumnWidth, setSideShelvesShelfCount,
+    setSideShelvesColumnWidth, setSideShelvesShelfCount, setSideShelvesLayout,
     applyPreset, toggleAllDoors,
   } = useDressingUnitStore();
 
@@ -204,15 +277,21 @@ function ParametersStep() {
             return (
               <button
                 onClick={toggleAllDoors}
-                title={anyDoors ? 'Ascunde ușile pentru a vedea interiorul' : 'Afișează ușile'}
-                className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md transition-all ${
+                title={anyDoors ? 'Ascunde ușile pentru a vedea interiorul' : 'Afișează ușile pentru a vedea aspectul final'}
+                className={`relative flex items-center gap-1.5 text-[11.5px] px-3 py-1.5 rounded-lg font-bold uppercase tracking-wide transition-all ${
                   anyDoors
-                    ? 'bg-brand-accent/10 text-brand-accent border border-brand-accent/25 hover:bg-brand-accent/15'
-                    : 'bg-white text-brand-charcoal/60 border border-brand-beige/30 hover:border-brand-accent/40'
+                    ? 'bg-gradient-to-b from-brand-accent to-brand-accent/90 text-white border-2 border-brand-accent shadow-lg shadow-brand-accent/30 hover:shadow-xl hover:shadow-brand-accent/40 hover:scale-[1.02] active:scale-[0.98]'
+                    : 'bg-gradient-to-b from-white via-brand-beige/20 to-brand-beige/40 text-brand-accent border-2 border-brand-accent ring-4 ring-brand-accent/20 shadow-lg shadow-brand-accent/20 hover:ring-brand-accent/35 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] animate-pulse-strong'
                 }`}
               >
-                {anyDoors ? <DoorClosed className="w-3 h-3" /> : <DoorOpen className="w-3 h-3" />}
-                <span className="font-medium">{anyDoors ? 'Ascunde uși' : 'Afișează uși'}</span>
+                {anyDoors ? <DoorClosed className="w-4 h-4" /> : <DoorOpen className="w-4 h-4" />}
+                <span>{anyDoors ? 'Ascunde uși' : 'Afișează uși'}</span>
+                {!anyDoors && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-80"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-accent border-2 border-white"></span>
+                  </span>
+                )}
               </button>
             );
           })()}
@@ -266,11 +345,9 @@ function ParametersStep() {
                     </span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    {m.hasTopCompartment && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent font-semibold uppercase tracking-wider">
-                        Top
-                      </span>
-                    )}
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent font-semibold uppercase tracking-wider tabular-nums">
+                      Top {Math.round(m.topCompartmentHeight * 10)}
+                    </span>
                     <ChevronDown className={`w-3.5 h-3.5 text-brand-charcoal/40 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
                   </div>
                 </button>
@@ -309,35 +386,14 @@ function ParametersStep() {
                       <label className="text-[10px] uppercase tracking-wider text-brand-charcoal/45 font-semibold block mb-1">
                         Compartiment superior
                       </label>
-                      <button
-                        onClick={() => toggleModuleTopCompartment(i)}
-                        className={`w-full flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-md transition-all border ${
-                          m.hasTopCompartment
-                            ? 'bg-brand-accent/10 text-brand-accent border-brand-accent/30'
-                            : 'bg-white text-brand-charcoal/60 border-brand-beige/40 hover:border-brand-accent/30'
-                        }`}
-                      >
-                        <span className="font-medium">
-                          {m.hasTopCompartment ? 'Activat' : 'Adaugă compartiment'}
-                        </span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                          m.hasTopCompartment ? 'bg-brand-accent text-white' : 'bg-brand-charcoal/10 text-brand-charcoal/50'
-                        }`}>
-                          {m.hasTopCompartment ? 'ON' : 'OFF'}
-                        </span>
-                      </button>
-                      {m.hasTopCompartment && (
-                        <div className="mt-1.5">
-                          <ParamSlider
-                            label="Înălțime compartiment"
-                            value={m.topCompartmentHeight}
-                            {...DRESSING_UNIT_LIMITS.topCompartmentHeight}
-                            unit="mm"
-                            scale={10}
-                            onChange={(v) => setModuleTopCompartmentHeight(i, v)}
-                          />
-                        </div>
-                      )}
+                      <ParamSlider
+                        label="Înălțime compartiment"
+                        value={m.topCompartmentHeight}
+                        {...DRESSING_UNIT_LIMITS.topCompartmentHeight}
+                        unit="mm"
+                        scale={10}
+                        onChange={(v) => setModuleTopCompartmentHeight(i, v)}
+                      />
                     </div>
                   </div>
                 )}
@@ -398,6 +454,41 @@ function ParametersStep() {
               unit="buc"
               onChange={setSideShelvesShelfCount}
             />
+
+            {/* Layout polițe - preconfigurări vizuale */}
+            <div className="pt-1.5">
+              <label className="text-[10px] uppercase tracking-wider text-brand-charcoal/45 font-semibold block mb-1.5">
+                Aranjament polițe
+              </label>
+              <div className="grid grid-cols-2 gap-1.5">
+                {DRESSING_SIDE_LAYOUT_OPTIONS.map((opt) => {
+                  const active = c.sideShelves.layout === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => setSideShelvesLayout(opt.id as DressingSideLayout)}
+                      title={opt.description}
+                      className={`group relative text-left px-2 py-1.5 rounded-lg border transition-all ${
+                        active
+                          ? 'bg-brand-accent/10 border-brand-accent/50 ring-1 ring-brand-accent/20'
+                          : 'bg-white border-brand-beige/30 hover:border-brand-accent/40 hover:bg-brand-accent/5'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-[11px] font-semibold leading-tight ${active ? 'text-brand-accent' : 'text-brand-dark'}`}>
+                          {opt.name}
+                        </span>
+                        {/* Mini preview SVG */}
+                        <LayoutPreview layout={opt.id as DressingSideLayout} active={active} />
+                      </div>
+                      <div className="text-[9px] text-brand-charcoal/50 leading-snug">
+                        {opt.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </div>

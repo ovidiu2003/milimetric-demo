@@ -229,7 +229,7 @@ export default function DressingUnitModel() {
       {PL > 0 && (
         <mesh position={[modulesLeftX + modulesW / 2, PL / 2, 0]} castShadow receiveShadow>
           <boxGeometry args={[modulesW - 0.04, PL, D - 0.06]} />
-          <meshStandardMaterial {...bodyMatProps} color="#2a2218" map={undefined} />
+          <meshStandardMaterial {...frontMatProps} />
         </mesh>
       )}
 
@@ -287,6 +287,7 @@ export default function DressingUnitModel() {
           columns={sideCfg.columns}
           columnWidth={sideCfg.columnWidth * S}
           shelfCount={sideCfg.shelfCount}
+          layout={sideCfg.layout}
           bodyY0={0}
           bodyH={H}
           D={D}
@@ -303,6 +304,7 @@ export default function DressingUnitModel() {
           columns={sideCfg.columns}
           columnWidth={sideCfg.columnWidth * S}
           shelfCount={sideCfg.shelfCount}
+          layout={sideCfg.layout}
           bodyY0={0}
           bodyH={H}
           D={D}
@@ -713,10 +715,69 @@ function ModuleDoors({
 //  - Rafturi orizontale in fiecare coloana
 // Deschiderea este pe axa X, spre exterior (stanga sau dreapta)
 // ──────────────────────────────────────────────────────────────
+
+/**
+ * Calculeaza pozitiile rafturilor (ca fractii 0..1 intre innerBottom si innerTop)
+ * pentru diverse layout-uri estetice. Respecta intotdeauna `n` = shelfCount.
+ */
+function shelfFractions(
+  layout: 'uniform' | 'asimetric' | 'galerie' | 'vitrina',
+  col: number,
+  _cols: number,
+  n: number
+): number[] {
+  const safeN = Math.max(1, Math.floor(n));
+  if (layout === 'uniform') {
+    return Array.from({ length: safeN }, (_, i) => (i + 1) / (safeN + 1));
+  }
+  if (layout === 'asimetric') {
+    // Coloane pare: rafturi mai dese in partea de sus (ease-out)
+    // Coloane impare: rafturi mai dese in partea de jos (ease-in)
+    const easeOut = (t: number) => 1 - Math.pow(1 - t, 1.8);
+    const easeIn  = (t: number) => Math.pow(t, 1.8);
+    const fn = col % 2 === 0 ? easeOut : easeIn;
+    return Array.from({ length: safeN }, (_, i) => fn((i + 1) / (safeN + 1)));
+  }
+  if (layout === 'galerie') {
+    // Pattern asimetric: alternanta de offset per raft, diferit per coloana
+    // Baza uniforma + offset sinusoidal in functie de coloana si index
+    const phase = (col % 3) * (Math.PI / 2.5);
+    return Array.from({ length: safeN }, (_, i) => {
+      const base = (i + 1) / (safeN + 1);
+      const wave = Math.sin(i * 1.3 + phase) * 0.06;
+      return Math.max(0.05, Math.min(0.95, base + wave));
+    }).sort((a, b) => a - b);
+  }
+  if (layout === 'vitrina') {
+    // Compartiment mare jos (~35%), apoi spatieri descrescatoare spre top
+    if (safeN === 1) return [0.4];
+    const bottom = 0.32;
+    const remaining = 1 - bottom;
+    const res: number[] = [bottom];
+    let acc = bottom;
+    // distribuim restul de (safeN-1) rafturi cu spatieri descrescatoare
+    // gap_i = k * r^i, suma = remaining - margin
+    const margin = 0.05;
+    const target = remaining - margin;
+    const rRatio = 0.82;
+    // Suma serie geometrica: k * (1 - r^(n-1)) / (1 - r) = target
+    const nGaps = safeN - 1;
+    const sumR = (1 - Math.pow(rRatio, nGaps)) / (1 - rRatio);
+    const k = target / sumR;
+    for (let i = 0; i < nGaps; i++) {
+      acc += k * Math.pow(rRatio, i);
+      res.push(Math.min(0.95, acc));
+    }
+    return res;
+  }
+  return Array.from({ length: safeN }, (_, i) => (i + 1) / (safeN + 1));
+}
+
 function SideShelvesGroup({
   startX, side, columns, columnWidth, shelfCount,
   bodyY0, bodyH, D, T,
   bodyMatProps, bodyMatPropsH, frontMatProps,
+  layout = 'uniform',
 }: {
   startX: number;
   side: 'left' | 'right';
@@ -730,6 +791,7 @@ function SideShelvesGroup({
   bodyMatProps: any;
   bodyMatPropsH: any;
   frontMatProps: any;
+  layout?: 'uniform' | 'asimetric' | 'galerie' | 'vitrina';
 }) {
   const libDepthX = columnWidth;
   const centerX = startX + libDepthX / 2;
@@ -758,8 +820,9 @@ function SideShelvesGroup({
     const shelfInnerW = libDepthX - T;
     const shelfCenterX = centerX;
 
-    for (let s = 1; s <= shelfCount; s++) {
-      const sy = innerBottomY + (innerH / (shelfCount + 1)) * s;
+    const fractions = shelfFractions(layout, c, columns, shelfCount);
+    fractions.forEach((f, s) => {
+      const sy = innerBottomY + innerH * f;
       shelves.push(
         <mesh
           key={`side-shelf-${c}-${s}`}
@@ -772,9 +835,8 @@ function SideShelvesGroup({
           <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
         </mesh>
       );
-    }
+    });
   }
-
   return (
     <group>
       {/* Panou FATA - facade in culoarea frontului (ca usile),
