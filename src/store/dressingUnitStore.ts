@@ -9,7 +9,8 @@ const STEPS: DressingUnitStep[] = ['parameters', 'materials', 'summary'];
 // ===== CONSTRAINTS =====
 export const DRESSING_UNIT_LIMITS = {
   moduleCount:          { min: 1, max: 6, step: 1 },
-  moduleWidth:          { min: 40, max: 120, step: 0.1 },
+  moduleWidth:          { min: 30, max: 150, step: 0.1 },
+  totalModulesWidth:    { min: 30, max: 900, step: 0.1 },  // suma latimilor modulelor (fara biblioteca)
   totalHeight:          { min: 200, max: 280, step: 0.1 },
   depth:                { min: 50, max: 65, step: 0.1 },
   plinthHeight:         { min: 0, max: 15, step: 0.1 },
@@ -27,42 +28,122 @@ export const DRESSING_SIDE_POSITION_OPTIONS: { id: DressingSidePosition; name: s
 ];
 
 // ===== INTERIOR PRESETS =====
+// Toate modulele au usi (structural). hasDoors controleaza doar vizibilitatea in 3D.
 export const DRESSING_INTERIOR_OPTIONS: { id: DressingInteriorType; name: string; description: string; allowsDoors: boolean }[] = [
   { id: 'bara-raft',        name: 'Bară haine + raft',             description: 'Bară de haine sus, un raft jos',                 allowsDoors: true  },
   { id: 'rafturi',          name: 'Rafturi multiple',              description: 'Patru rafturi orizontale',                       allowsDoors: true  },
   { id: 'mixt',             name: 'Mixt (bară + sertare)',         description: 'Bară haine sus, două sertare jos',               allowsDoors: true  },
-  { id: 'rafturi-deschise', name: 'Rafturi deschise (bibliotecă)', description: 'Modul deschis, șase rafturi vizibile, fără uși', allowsDoors: false },
 ];
 
 // ===== DEFAULTS =====
-function defaultModule(width = 100, interiorType: DressingInteriorType = 'bara-raft', hasDoors = true): DressingModuleConfig {
+function defaultModule(width = 100, interiorType: DressingInteriorType = 'bara-raft'): DressingModuleConfig {
   return {
     width,
     interiorType,
-    hasDoors: interiorType === 'rafturi-deschise' ? false : hasDoors,
+    hasDoors: false,  // start cu usile ascunse ca clientul sa vada interiorul
     hasTopCompartment: true,
     topCompartmentHeight: 40,
   };
 }
 
-const defaultConfig: DressingUnitConfig = {
-  moduleCount: 4,
-  modules: [
-    defaultModule(100, 'bara-raft', true),
-    defaultModule(100, 'rafturi',   true),
-    defaultModule(100, 'mixt',      true),
-    defaultModule(50,  'rafturi-deschise', false),
-  ],
-  sideShelves: {
-    position: 'none',
-    columns: 2,
-    columnWidth: 28,
-    shelfCount: 5,
+// ===== PRESETS (preconfigurari moderne) =====
+export interface DressingPreset {
+  id: string;
+  name: string;
+  description: string;
+  modules: DressingModuleConfig[];
+  totalHeight: number;
+  depth: number;
+  plinthHeight: number;
+  sideShelves: { position: 'none' | 'left' | 'right' | 'both'; columns: number; columnWidth: number; shelfCount: number };
+}
+
+export const DRESSING_PRESETS: DressingPreset[] = [
+  {
+    id: 'essential-compact',
+    name: 'Essential Compact',
+    description: 'Trei module echilibrate, design curat, compartimente superioare.',
+    modules: [
+      { width: 90, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 38 },
+      { width: 90, interiorType: 'mixt',      hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 38 },
+      { width: 90, interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 38 },
+    ],
+    totalHeight: 230,
+    depth: 58,
+    plinthHeight: 8,
+    sideShelves: { position: 'none', columns: 2, columnWidth: 28, shelfCount: 5 },
   },
-  totalWidth: 350,
-  totalHeight: 240,
-  depth: 60,
-  plinthHeight: 8,
+  {
+    id: 'minimal-walkin',
+    name: 'Minimal Walk-In',
+    description: 'Patru module largi, ritmic aranjate, fără compartimente superioare.',
+    modules: [
+      { width: 100, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
+      { width: 100, interiorType: 'mixt',      hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
+      { width: 100, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
+      { width: 100, interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
+    ],
+    totalHeight: 240,
+    depth: 60,
+    plinthHeight: 6,
+    sideShelves: { position: 'none', columns: 2, columnWidth: 28, shelfCount: 5 },
+  },
+  {
+    id: 'gallery-open',
+    name: 'Gallery Open',
+    description: 'Compoziție dinamică cu module mixte pentru un aspect rafinat.',
+    modules: [
+      { width: 70,  interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
+      { width: 100, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: true,  topCompartmentHeight: 40 },
+      { width: 100, interiorType: 'mixt',      hasDoors: false, hasTopCompartment: true,  topCompartmentHeight: 40 },
+      { width: 70,  interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: false, topCompartmentHeight: 40 },
+    ],
+    totalHeight: 245,
+    depth: 60,
+    plinthHeight: 8,
+    sideShelves: { position: 'none', columns: 2, columnWidth: 28, shelfCount: 5 },
+  },
+  {
+    id: 'boutique-suite',
+    name: 'Boutique Suite',
+    description: 'Compoziție premium cu compartimente mari deasupra și bibliotecă laterală.',
+    modules: [
+      { width: 95,  interiorType: 'mixt',      hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 45 },
+      { width: 95,  interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 45 },
+      { width: 95,  interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 45 },
+      { width: 95,  interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 45 },
+    ],
+    totalHeight: 260,
+    depth: 62,
+    plinthHeight: 10,
+    sideShelves: { position: 'right', columns: 3, columnWidth: 32, shelfCount: 6 },
+  },
+  {
+    id: 'atelier-wide',
+    name: 'Atelier Wide',
+    description: 'Cinci module asimetrice cu bibliotecă pe ambele părți pentru un dressing complet.',
+    modules: [
+      { width: 80,  interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 42 },
+      { width: 110, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 42 },
+      { width: 110, interiorType: 'mixt',      hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 42 },
+      { width: 110, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 42 },
+      { width: 80,  interiorType: 'rafturi',   hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 42 },
+    ],
+    totalHeight: 250,
+    depth: 60,
+    plinthHeight: 8,
+    sideShelves: { position: 'both', columns: 2, columnWidth: 30, shelfCount: 5 },
+  },
+];
+
+const defaultConfig: DressingUnitConfig = {
+  moduleCount: 3,
+  modules: DRESSING_PRESETS[0].modules.map((m) => ({ ...m })),
+  sideShelves: { ...DRESSING_PRESETS[0].sideShelves },
+  totalWidth: 270,
+  totalHeight: DRESSING_PRESETS[0].totalHeight,
+  depth: DRESSING_PRESETS[0].depth,
+  plinthHeight: DRESSING_PRESETS[0].plinthHeight,
   bodyMaterialId: 'EGGER_H3730_ST10_Natural Hickory',
   frontMaterialId: 'EGGER_W1100_ST9_Alpine White',
 };
@@ -91,6 +172,36 @@ function resizeModules(modules: DressingModuleConfig[], count: number): Dressing
   const template = modules[modules.length - 1] || defaultModule();
   const extra = Array.from({ length: count - modules.length }, () => ({ ...template }));
   return [...modules, ...extra];
+}
+
+/**
+ * Distribuie o variatie `deltaToAdd` intre modulele indicate (skipping `skipIdx`),
+ * respectand limitele per-modul. Daca unele module ating limitele, restul este
+ * preluat iterativ de modulele ramase libere.
+ */
+function distributeWidthDelta(widths: number[], skipIdx: number, deltaToAdd: number): number[] {
+  const MIN = DRESSING_UNIT_LIMITS.moduleWidth.min;
+  const MAX = DRESSING_UNIT_LIMITS.moduleWidth.max;
+  const result = [...widths];
+  let remaining = deltaToAdd;
+  let free = result.map((_, i) => i).filter((i) => i !== skipIdx);
+  let safety = 10;
+  while (free.length > 0 && Math.abs(remaining) > 0.01 && safety-- > 0) {
+    const share = remaining / free.length;
+    const nextFree: number[] = [];
+    let consumed = 0;
+    for (const i of free) {
+      const target = result[i] + share;
+      const clamped = Math.max(MIN, Math.min(MAX, target));
+      consumed += clamped - result[i];
+      result[i] = clamped;
+      if (clamped > MIN + 0.001 && clamped < MAX - 0.001) nextFree.push(i);
+    }
+    remaining -= consumed;
+    if (nextFree.length === free.length) break; // nu mai exista capacitate
+    free = nextFree;
+  }
+  return result.map((w) => Math.round(w * 10) / 10);
 }
 
 // ===== PRICE CALCULATION =====
@@ -135,38 +246,41 @@ export function calculateDressingUnitPrice(config: DressingUnitConfig) {
         break;
     }
 
-    if (m.hasDoors && m.interiorType !== 'rafturi-deschise') {
-      doorModules += 1;
-      // Usile merg pe toata inaltimea modulului (corp principal + compartiment superior)
-      const fullDoorH = bodyHeight - (m.hasTopCompartment ? 0 : 0); // bodyHeight include deja totul deasupra plintei
-      frontsCost += 2 * (m.width / 2) * fullDoorH * 0.04 * frontMul;
-    }
+    // Toate modulele au usi structural (hasDoors controleaza doar vizibilitatea in 3D)
+    doorModules += 1;
+    // Usile merg de la podea pana la varf (includ si plinta in fata lor)
+    const fullDoorH = config.totalHeight;
+    frontsCost += m.width * fullDoorH * 0.04 * frontMul;
   }
 
   // Biblioteca laterala (side shelves): deschidere in lateral
-  // Structura per parte: 2 panouri verticale (fata si spate) + 1 spate la dressing
-  //                    + top + bottom + (columns-1) separatoare interioare + rafturi
+  // Structura per parte: front (in culoarea frontului, pana la podea) + panou spate (la exterior)
+  //                    + spate catre dressing + (columns-1) separatoare interioare + rafturi
+  //                    (FARA top/bottom cap)
   let sideShelvesCost = 0;
+  let sideFrontCost = 0;
   const sw = sideShelvesWidth(config);
   if (sw > 0) {
     const s = config.sideShelves;
     const sides = s.position === 'both' ? 2 : 1;
     const libDepth = s.columnWidth;   // cat iese in afara (X)
     const libZ = config.depth;        // adancime pe Z (aliniata cu dressingul)
-    // Per parte: 2 pereti (fata + spate) pe toata inaltimea
-    sideShelvesCost += sides * 2 * bodyHeight * libDepth * 0.04 * bodyMul;
+    const libH = config.totalHeight;  // inaltime totala (fara plinta - biblioteca pana la podea)
+    // Front - in culoarea frontului, pe toata inaltimea
+    sideFrontCost += sides * libH * libDepth * 0.04 * frontMul;
+    // Spate individual (panou complet de la podea la top)
+    sideShelvesCost += sides * libH * libDepth * 0.04 * bodyMul;
+    // Panou lateral intre biblioteca si modul (de la podea la top)
+    sideShelvesCost += sides * libH * libZ * 0.04 * bodyMul;
     // Separatoare interioare (intre coloane): (columns - 1) per parte
-    sideShelvesCost += sides * Math.max(0, s.columns - 1) * bodyHeight * libDepth * 0.04 * bodyMul;
-    // Top + bottom per parte
-    sideShelvesCost += sides * 2 * libZ * libDepth * 0.04 * bodyMul;
-    // Spate (catre dressing)
-    sideShelvesCost += sides * libZ * bodyHeight * 0.02 * bodyMul;
+    sideShelvesCost += sides * Math.max(0, s.columns - 1) * libH * libDepth * 0.04 * bodyMul;
     // Rafturi: columns coloane × shelfCount rafturi
     const shelfZWidth = libZ / s.columns;
     sideShelvesCost += sides * s.columns * s.shelfCount * shelfZWidth * libDepth * 0.01 * bodyMul;
   }
+  frontsCost += sideFrontCost;
 
-  const plinthCost = config.plinthHeight > 0 ? config.totalWidth * config.plinthHeight * 0.03 * bodyMul : 0;
+  const plinthCost = config.plinthHeight > 0 ? (config.totalWidth - sw) * config.plinthHeight * 0.03 * bodyMul : 0;
   const hardwareCost = 250 + 100 * doorModules;
 
   const depthFactor = config.depth / 60;
@@ -200,6 +314,7 @@ interface DressingUnitState {
   price: ReturnType<typeof calculateDressingUnitPrice>;
 
   setModuleCount: (v: number) => void;
+  setTotalModulesWidth: (v: number) => void;
   setTotalHeight: (v: number) => void;
   setDepth: (v: number) => void;
   setPlinthHeight: (v: number) => void;
@@ -214,6 +329,9 @@ interface DressingUnitState {
   setSideShelvesColumns: (n: number) => void;
   setSideShelvesColumnWidth: (v: number) => void;
   setSideShelvesShelfCount: (n: number) => void;
+
+  applyPreset: (presetId: string) => void;
+  toggleAllDoors: () => void;
 
   setBodyMaterial: (id: string) => void;
   setFrontMaterial: (id: string) => void;
@@ -253,6 +371,20 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     commit(set, { ...prev, moduleCount: val, modules: resizeModules(prev.modules, val) });
   },
 
+  setTotalModulesWidth: (v) => {
+    const prev = get().config;
+    const n = prev.modules.length;
+    if (n === 0) return;
+    // distribuie egal pe fiecare modul, respectand limitele per-modul
+    const minTotal = n * DRESSING_UNIT_LIMITS.moduleWidth.min;
+    const maxTotal = n * DRESSING_UNIT_LIMITS.moduleWidth.max;
+    const total = clamp(v, minTotal, maxTotal);
+    const each = Math.round((total / n) * 10) / 10;
+    const eachClamped = clamp(each, DRESSING_UNIT_LIMITS.moduleWidth.min, DRESSING_UNIT_LIMITS.moduleWidth.max);
+    const modules = prev.modules.map((m) => ({ ...m, width: eachClamped }));
+    commit(set, { ...prev, modules });
+  },
+
   setTotalHeight: (v) => {
     const prev = get().config;
     const val = clamp(v, DRESSING_UNIT_LIMITS.totalHeight.min, DRESSING_UNIT_LIMITS.totalHeight.max);
@@ -272,22 +404,54 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
   },
 
   setModuleWidth: (index, v) => {
-    const val = clamp(v, DRESSING_UNIT_LIMITS.moduleWidth.min, DRESSING_UNIT_LIMITS.moduleWidth.max);
-    updateModule(set, get, index, (m) => ({ ...m, width: val }));
+    const prev = get().config;
+    const n = prev.modules.length;
+    const MIN = DRESSING_UNIT_LIMITS.moduleWidth.min;
+    const MAX = DRESSING_UNIT_LIMITS.moduleWidth.max;
+    const requested = clamp(v, MIN, MAX);
+    if (n <= 1) {
+      updateModule(set, get, index, (m) => ({ ...m, width: requested }));
+      return;
+    }
+    const oldW = prev.modules[index].width;
+    const delta = requested - oldW;
+    // Cat pot absorbi celelalte module (pastram totalul cat posibil)
+    const othersTotal = prev.modules.reduce((s, m, i) => (i === index ? s : s + m.width), 0);
+    const minOthers = (n - 1) * MIN;
+    const maxOthers = (n - 1) * MAX;
+    const absorbablePos = othersTotal - minOthers;  // cat pot scadea ceilalti
+    const absorbableNeg = othersTotal - maxOthers;  // cat pot creste ceilalti (<=0)
+    // Cat din delta se redistribuie (restul lasam sa afecteze totalul)
+    const absorbed = delta > 0 ? Math.min(delta, absorbablePos) : Math.max(delta, absorbableNeg);
+    const newVal = Math.round(requested * 10) / 10;
+    const widths = prev.modules.map((m) => m.width);
+    const distributed = distributeWidthDelta(widths, index, -absorbed);
+    distributed[index] = newVal;
+    // Corectie drift de rotunjire: totalul trebuie sa fie othersTotal + oldW + (delta - absorbed)
+    const targetTotal = Math.round((othersTotal + oldW + (delta - absorbed)) * 10) / 10;
+    const actualTotal = distributed.reduce((s, w) => s + w, 0);
+    const drift = Math.round((targetTotal - actualTotal) * 10) / 10;
+    if (Math.abs(drift) > 0.001) {
+      // aplic drift pe primul modul liber (non-index, in interior limite)
+      for (let i = 0; i < distributed.length; i++) {
+        if (i === index) continue;
+        const adj = distributed[i] + drift;
+        if (adj >= MIN - 0.001 && adj <= MAX + 0.001) {
+          distributed[i] = Math.round(adj * 10) / 10;
+          break;
+        }
+      }
+    }
+    const modules = prev.modules.map((m, i) => ({ ...m, width: distributed[i] }));
+    commit(set, { ...prev, modules });
   },
 
   setModuleInterior: (index, type) => {
-    updateModule(set, get, index, (m) => ({
-      ...m,
-      interiorType: type,
-      hasDoors: type === 'rafturi-deschise' ? false : m.hasDoors,
-    }));
+    updateModule(set, get, index, (m) => ({ ...m, interiorType: type }));
   },
 
   toggleModuleDoors: (index) => {
-    updateModule(set, get, index, (m) =>
-      m.interiorType === 'rafturi-deschise' ? m : { ...m, hasDoors: !m.hasDoors }
-    );
+    updateModule(set, get, index, (m) => ({ ...m, hasDoors: !m.hasDoors }));
   },
 
   toggleModuleTopCompartment: (index) => {
@@ -317,6 +481,29 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     const prev = get().config;
     const val = clamp(Math.round(n), DRESSING_UNIT_LIMITS.sideShelfCount.min, DRESSING_UNIT_LIMITS.sideShelfCount.max);
     commit(set, { ...prev, sideShelves: { ...prev.sideShelves, shelfCount: val } });
+  },
+
+  applyPreset: (presetId) => {
+    const preset = DRESSING_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    const prev = get().config;
+    commit(set, {
+      ...prev,
+      moduleCount: preset.modules.length,
+      modules: preset.modules.map((m) => ({ ...m })),
+      sideShelves: { ...preset.sideShelves },
+      totalHeight: preset.totalHeight,
+      depth: preset.depth,
+      plinthHeight: preset.plinthHeight,
+    });
+  },
+
+  toggleAllDoors: () => {
+    const prev = get().config;
+    const anyWithDoors = prev.modules.some((m) => m.hasDoors);
+    const nextState = !anyWithDoors;
+    const modules = prev.modules.map((m) => ({ ...m, hasDoors: nextState }));
+    commit(set, { ...prev, modules });
   },
 
   setBodyMaterial: (id) => {

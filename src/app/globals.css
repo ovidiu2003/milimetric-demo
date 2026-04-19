@@ -216,6 +216,30 @@
   animation: scaleIn 0.2s ease-out both;
 }
 
+/* ── Module card expand (grid-rows trick for smooth height transition) ── */
+@keyframes moduleExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 500px;
+  }
+}
+.animate-module-expand {
+  animation: moduleExpand 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  overflow: hidden;
+}
+.animate-module-expand > * {
+  animation: fadeSlideIn 0.3s ease-out both;
+}
+.animate-module-expand > *:nth-child(1) { animation-delay: 40ms; }
+.animate-module-expand > *:nth-child(2) { animation-delay: 80ms; }
+.animate-module-expand > *:nth-child(3) { animation-delay: 120ms; }
+
 /* Stagger children in material grids */
 .animate-stagger > * {
   animation: fadeSlideIn 0.2s ease-out both;

@@ -5,13 +5,15 @@ import {
   ArrowLeft, ArrowRight, Check,
   RotateCcw, ShoppingCart, Download,
   Ruler, PaintBucket, FileText, Truck, ChevronDown,
-  DoorOpen, DoorClosed,
+  DoorOpen, DoorClosed, Sparkles, Layers, Package, PanelLeft, PanelRight, PanelsTopLeft,
+  Archive, Grid3x3,
 } from 'lucide-react';
 import {
   useDressingUnitStore,
   DRESSING_UNIT_LIMITS,
   DRESSING_INTERIOR_OPTIONS,
   DRESSING_SIDE_POSITION_OPTIONS,
+  DRESSING_PRESETS,
   DressingUnitStep,
 } from '@/store/dressingUnitStore';
 import { DressingInteriorType, DressingSidePosition } from '@/types';
@@ -62,9 +64,9 @@ function ParamSlider({
   };
 
   return (
-    <div className="group overflow-visible px-1 pt-1 pb-2">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[13px] text-brand-charcoal/60 leading-none group-hover:text-brand-charcoal/80 transition-colors">{label}</span>
+    <div className="group overflow-visible px-1 pt-0.5 pb-1">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[12px] text-brand-charcoal/60 leading-none group-hover:text-brand-charcoal/80 transition-colors">{label}</span>
         <div className="flex items-baseline gap-0.5">
           <input
             type="number"
@@ -79,16 +81,16 @@ function ParamSlider({
                 setInputValue(dv.toString());
               } else commitValue(e.target.value);
             }}
-            className="w-14 text-right bg-transparent text-[14px] font-semibold text-brand-dark tabular-nums focus:outline-none focus:bg-white focus:shadow-sm focus:ring-1 focus:ring-brand-accent/20 rounded px-0.5 py-0 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            className="w-12 text-right bg-transparent text-[13px] font-semibold text-brand-dark tabular-nums focus:outline-none focus:bg-white focus:shadow-sm focus:ring-1 focus:ring-brand-accent/20 rounded px-0.5 py-0 transition-all [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             min={dmin} max={dmax} step={dstep}
           />
-          <span className="text-[11px] text-brand-charcoal/40 leading-none">{unit}</span>
+          <span className="text-[10px] text-brand-charcoal/40 leading-none">{unit}</span>
         </div>
       </div>
-      <div className="relative h-[6px] rounded-full bg-brand-beige/30 shadow-inner">
+      <div className="relative h-[5px] rounded-full bg-brand-beige/30 shadow-inner">
         <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-brand-accent/70 to-brand-accent transition-[width] duration-75" style={{ width: `${pct}%` }} />
         <div className="slider-tooltip" style={{ left: `${pct}%` }}>{dv}{unit}</div>
-        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[14px] h-[14px] rounded-full bg-white border-2 border-brand-accent shadow-md transition-[left] duration-75 group-hover:scale-110 group-hover:shadow-lg" style={{ left: `${pct}%` }} />
+        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-[12px] h-[12px] rounded-full bg-white border-2 border-brand-accent shadow-md transition-[left] duration-75 group-hover:scale-110 group-hover:shadow-lg" style={{ left: `${pct}%` }} />
         <input type="range" min={dmin} max={dmax} step={dstep} value={dv}
           onChange={(e) => onChange(parseInt(e.target.value, 10) / scale)}
           className="absolute inset-x-0 top-1/2 -translate-y-1/2 w-full h-6 opacity-0 cursor-pointer"
@@ -105,21 +107,71 @@ function ParamSlider({
 function ParametersStep() {
   const c = useDressingUnitStore((s) => s.config);
   const {
-    setModuleCount, setTotalHeight, setDepth, setPlinthHeight,
+    setModuleCount, setTotalModulesWidth, setTotalHeight, setDepth, setPlinthHeight,
     setModuleWidth, setModuleInterior, toggleModuleDoors,
     toggleModuleTopCompartment, setModuleTopCompartmentHeight,
     setSideShelvesPosition, setSideShelvesColumns,
     setSideShelvesColumnWidth, setSideShelvesShelfCount,
+    applyPreset, toggleAllDoors,
   } = useDressingUnitStore();
+
+  const [expandedModule, setExpandedModule] = useState<number | null>(0);
+  const [showPresets, setShowPresets] = useState(true);
 
   return (
     <div className="flex flex-col">
+      {/* Presets - compact chips */}
+      <div className="py-2 px-4 lg:px-[25px] border-b border-brand-beige/20">
+        <button
+          onClick={() => setShowPresets((v) => !v)}
+          className="w-full flex items-center justify-between text-[10px] uppercase tracking-widest text-brand-charcoal/40 font-semibold mb-1.5 hover:text-brand-charcoal/70 transition-colors"
+        >
+          <span className="flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3" />
+            Preconfigurări
+          </span>
+          <ChevronDown className={`w-3 h-3 transition-transform ${showPresets ? '' : '-rotate-90'}`} />
+        </button>
+        {showPresets && (
+          <div className="grid grid-cols-2 gap-1.5">
+            {DRESSING_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => applyPreset(p.id)}
+                title={p.description}
+                className="group text-left px-2 py-1.5 rounded-lg bg-white border border-brand-beige/30 hover:border-brand-accent/50 hover:bg-brand-accent/5 transition-all"
+              >
+                <div className="text-[11px] font-semibold text-brand-dark group-hover:text-brand-accent leading-tight">
+                  {p.name}
+                </div>
+                <div className="text-[9.5px] text-brand-charcoal/45 tabular-nums mt-0.5">
+                  {p.modules.length} mod · {p.totalHeight * 10}mm
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* General */}
-      <div className="space-y-3 py-3 px-4 lg:px-[25px] border-b border-brand-beige/20">
-        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">General</p>
+      <div className="space-y-2 py-2.5 px-4 lg:px-[25px] border-b border-brand-beige/20">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <Ruler className="w-3 h-3 text-brand-charcoal/40" />
+          <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/40 font-semibold">Dimensiuni generale</p>
+        </div>
         <ParamSlider label="Număr module" value={c.moduleCount}
           {...DRESSING_UNIT_LIMITS.moduleCount} unit="buc"
           onChange={setModuleCount}
+        />
+        <ParamSlider
+          label="Lățime totală module"
+          value={c.modules.reduce((acc, m) => acc + m.width, 0)}
+          min={c.modules.length * DRESSING_UNIT_LIMITS.moduleWidth.min}
+          max={c.modules.length * DRESSING_UNIT_LIMITS.moduleWidth.max}
+          step={DRESSING_UNIT_LIMITS.totalModulesWidth.step}
+          unit="mm"
+          scale={10}
+          onChange={setTotalModulesWidth}
         />
         <ParamSlider label="Înălțime totală" value={c.totalHeight}
           {...DRESSING_UNIT_LIMITS.totalHeight} unit="mm" scale={10}
@@ -136,100 +188,159 @@ function ParametersStep() {
       </div>
 
       {/* Per-module configuration */}
-      <div className="space-y-3 py-3 px-4 lg:px-[25px]">
-        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">
-          Configurație module
+      <div className="space-y-2 py-2.5 px-4 lg:px-[25px]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <Layers className="w-3 h-3 text-brand-charcoal/40" />
+            <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/40 font-semibold">
+              Module individuale
+            </p>
+            <span className="text-[9.5px] px-1.5 py-0.5 rounded-full bg-brand-charcoal/5 text-brand-charcoal/55 font-semibold tabular-nums">
+              {c.modules.length}
+            </span>
+          </div>
+          {(() => {
+            const anyDoors = c.modules.some((m) => m.hasDoors);
+            return (
+              <button
+                onClick={toggleAllDoors}
+                title={anyDoors ? 'Ascunde ușile pentru a vedea interiorul' : 'Afișează ușile'}
+                className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md transition-all ${
+                  anyDoors
+                    ? 'bg-brand-accent/10 text-brand-accent border border-brand-accent/25 hover:bg-brand-accent/15'
+                    : 'bg-white text-brand-charcoal/60 border border-brand-beige/30 hover:border-brand-accent/40'
+                }`}
+              >
+                {anyDoors ? <DoorClosed className="w-3 h-3" /> : <DoorOpen className="w-3 h-3" />}
+                <span className="font-medium">{anyDoors ? 'Ascunde uși' : 'Afișează uși'}</span>
+              </button>
+            );
+          })()}
+        </div>
+        <p className="text-[10px] text-brand-charcoal/45 leading-snug -mt-1">
+          Apasă pe un modul pentru a-i modifica lățimea, interiorul sau a adăuga un compartiment superior.
         </p>
-        <div className="space-y-2.5">
+        <div className="space-y-1.5">
           {c.modules.map((m, i) => {
-            const interiorOpt = DRESSING_INTERIOR_OPTIONS.find((o) => o.id === m.interiorType);
-            const allowsDoors = interiorOpt?.allowsDoors ?? true;
+            const isExpanded = expandedModule === i;
+            const interiorLabel =
+              m.interiorType === 'bara-raft' ? 'Bară + raft' :
+              m.interiorType === 'rafturi' ? 'Rafturi' :
+              'Mixt (bară + rafturi)';
+            const InteriorIcon =
+              m.interiorType === 'bara-raft' ? Archive :
+              m.interiorType === 'rafturi' ? Grid3x3 :
+              Package;
+
             return (
               <div
                 key={i}
-                className="rounded-xl border border-brand-beige/30 bg-[#F9F7F3] px-3 py-2.5 space-y-2"
+                className={`rounded-lg border overflow-hidden transition-all ${
+                  isExpanded
+                    ? 'border-brand-accent/40 bg-white shadow-sm'
+                    : 'border-brand-beige/30 bg-[#F9F7F3] hover:border-brand-beige/60'
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-[12px] font-semibold text-brand-dark">
-                    Modul {i + 1}
-                  </span>
-                  <button
-                    onClick={() => allowsDoors && toggleModuleDoors(i)}
-                    disabled={!allowsDoors}
-                    className={`flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-lg transition-all duration-200 ${
-                      !allowsDoors
-                        ? 'bg-white/50 text-brand-charcoal/30 border border-brand-beige/20 cursor-not-allowed'
-                        : m.hasDoors
-                          ? 'bg-brand-accent/10 text-brand-accent border border-brand-accent/25'
-                          : 'bg-white text-brand-charcoal/55 border border-brand-beige/30'
-                    }`}
-                    title={!allowsDoors ? 'Modul deschis — fără uși' : m.hasDoors ? 'Cu uși' : 'Deschis'}
-                  >
-                    {m.hasDoors && allowsDoors ? <DoorClosed className="w-3.5 h-3.5" /> : <DoorOpen className="w-3.5 h-3.5" />}
-                    {!allowsDoors ? 'Fără uși' : m.hasDoors ? 'Uși închise' : 'Deschis'}
-                  </button>
-                </div>
-
-                {/* Module width slider */}
-                <ParamSlider
-                  label="Lățime modul"
-                  value={m.width}
-                  {...DRESSING_UNIT_LIMITS.moduleWidth}
-                  unit="mm"
-                  scale={10}
-                  onChange={(v) => setModuleWidth(i, v)}
-                />
-
-                {/* Interior selector */}
-                <div>
-                  <label className="text-[11px] text-brand-charcoal/50 block mb-1">
-                    Configurație interioară
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={m.interiorType}
-                      onChange={(e) => setModuleInterior(i, e.target.value as DressingInteriorType)}
-                      className="w-full appearance-none bg-white border border-brand-beige/40 rounded-lg px-3 py-2 pr-8 text-[12px] text-brand-dark font-medium focus:outline-none focus:ring-2 focus:ring-brand-accent/30 focus:border-brand-accent/50 transition-all"
-                    >
-                      {DRESSING_INTERIOR_OPTIONS.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                          {opt.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-brand-charcoal/40 pointer-events-none" />
+                {/* Summary row - always visible */}
+                <button
+                  onClick={() => setExpandedModule(isExpanded ? null : i)}
+                  className="w-full flex items-center justify-between gap-2 px-2.5 py-2 hover:bg-white/60 transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className={`inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] font-bold shrink-0 ${
+                      isExpanded
+                        ? 'bg-brand-accent text-white'
+                        : 'bg-brand-charcoal/10 text-brand-charcoal/70'
+                    }`}>
+                      {i + 1}
+                    </span>
+                    <span className="text-[12px] font-semibold text-brand-dark shrink-0">
+                      Modul {i + 1}
+                    </span>
+                    <span className="text-[10.5px] text-brand-charcoal/55 tabular-nums shrink-0 px-1.5 py-0.5 rounded bg-brand-charcoal/5">
+                      {Math.round(m.width * 10)} mm
+                    </span>
+                    <span className="flex items-center gap-1 text-[10.5px] text-brand-charcoal/55 truncate min-w-0">
+                      <InteriorIcon className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{interiorLabel}</span>
+                    </span>
                   </div>
-                  <p className="text-[10px] text-brand-charcoal/40 mt-1">
-                    {interiorOpt?.description}
-                  </p>
-                </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {m.hasTopCompartment && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent font-semibold uppercase tracking-wider">
+                        Top
+                      </span>
+                    )}
+                    <ChevronDown className={`w-3.5 h-3.5 text-brand-charcoal/40 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                  </div>
+                </button>
 
-                {/* Top compartment */}
-                <div className="pt-1 border-t border-brand-beige/20">
-                  <button
-                    onClick={() => toggleModuleTopCompartment(i)}
-                    className={`w-full flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg transition-all duration-200 ${
-                      m.hasTopCompartment
-                        ? 'bg-brand-accent/10 text-brand-accent border border-brand-accent/25'
-                        : 'bg-white text-brand-charcoal/55 border border-brand-beige/30'
-                    }`}
-                  >
-                    <span className="font-medium">Compartiment superior</span>
-                    <span>{m.hasTopCompartment ? 'Activat' : 'Dezactivat'}</span>
-                  </button>
-                  {m.hasTopCompartment && (
-                    <div className="mt-2">
-                      <ParamSlider
-                        label="Înălțime compartiment"
-                        value={m.topCompartmentHeight}
-                        {...DRESSING_UNIT_LIMITS.topCompartmentHeight}
-                        unit="mm"
-                        scale={10}
-                        onChange={(v) => setModuleTopCompartmentHeight(i, v)}
-                      />
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="px-2.5 pb-2.5 pt-2 space-y-2 border-t border-brand-beige/30 bg-[#FBFAF7] animate-module-expand">
+                    <ParamSlider
+                      label="Lățime modul"
+                      value={m.width}
+                      {...DRESSING_UNIT_LIMITS.moduleWidth}
+                      unit="mm"
+                      scale={10}
+                      onChange={(v) => setModuleWidth(i, v)}
+                    />
+
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wider text-brand-charcoal/45 font-semibold block mb-1">
+                        Configurație interior
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={m.interiorType}
+                          onChange={(e) => setModuleInterior(i, e.target.value as DressingInteriorType)}
+                          className="w-full appearance-none bg-white border border-brand-beige/40 rounded-md px-2.5 py-1.5 pr-7 text-[11.5px] text-brand-dark font-medium focus:outline-none focus:ring-1 focus:ring-brand-accent/30 focus:border-brand-accent/50 transition-all"
+                        >
+                          {DRESSING_INTERIOR_OPTIONS.map((opt) => (
+                            <option key={opt.id} value={opt.id}>{opt.name}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-brand-charcoal/40 pointer-events-none" />
+                      </div>
                     </div>
-                  )}
-                </div>
+
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wider text-brand-charcoal/45 font-semibold block mb-1">
+                        Compartiment superior
+                      </label>
+                      <button
+                        onClick={() => toggleModuleTopCompartment(i)}
+                        className={`w-full flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-md transition-all border ${
+                          m.hasTopCompartment
+                            ? 'bg-brand-accent/10 text-brand-accent border-brand-accent/30'
+                            : 'bg-white text-brand-charcoal/60 border-brand-beige/40 hover:border-brand-accent/30'
+                        }`}
+                      >
+                        <span className="font-medium">
+                          {m.hasTopCompartment ? 'Activat' : 'Adaugă compartiment'}
+                        </span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                          m.hasTopCompartment ? 'bg-brand-accent text-white' : 'bg-brand-charcoal/10 text-brand-charcoal/50'
+                        }`}>
+                          {m.hasTopCompartment ? 'ON' : 'OFF'}
+                        </span>
+                      </button>
+                      {m.hasTopCompartment && (
+                        <div className="mt-1.5">
+                          <ParamSlider
+                            label="Înălțime compartiment"
+                            value={m.topCompartmentHeight}
+                            {...DRESSING_UNIT_LIMITS.topCompartmentHeight}
+                            unit="mm"
+                            scale={10}
+                            onChange={(v) => setModuleTopCompartmentHeight(i, v)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -237,40 +348,43 @@ function ParametersStep() {
       </div>
 
       {/* Side shelves (biblioteca laterala) */}
-      <div className="space-y-3 py-3 px-4 lg:px-[25px] border-t border-brand-beige/20">
-        <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/35 font-medium">
-          Bibliotecă laterală
-        </p>
-        <div>
-          <label className="text-[11px] text-brand-charcoal/50 block mb-1">Poziție</label>
-          <div className="relative">
-            <select
-              value={c.sideShelves.position}
-              onChange={(e) => setSideShelvesPosition(e.target.value as DressingSidePosition)}
-              className="w-full appearance-none bg-white border border-brand-beige/40 rounded-lg px-3 py-2 pr-8 text-[12px] text-brand-dark font-medium focus:outline-none focus:ring-2 focus:ring-brand-accent/30 focus:border-brand-accent/50 transition-all"
-            >
-              {DRESSING_SIDE_POSITION_OPTIONS.map((opt) => (
-                <option key={opt.id} value={opt.id}>{opt.name}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-brand-charcoal/40 pointer-events-none" />
-          </div>
-          <p className="text-[10px] text-brand-charcoal/40 mt-1">
-            Rafturi cu deschiderea în lateral (spre exterior). Coloanele împart biblioteca pe adâncime (faţă-spate).
+      <div className="space-y-2 py-2.5 px-4 lg:px-[25px] border-t border-brand-beige/20">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          {c.sideShelves.position === 'left' ? (
+            <PanelLeft className="w-3 h-3 text-brand-charcoal/40" />
+          ) : c.sideShelves.position === 'right' ? (
+            <PanelRight className="w-3 h-3 text-brand-charcoal/40" />
+          ) : (
+            <PanelsTopLeft className="w-3 h-3 text-brand-charcoal/40" />
+          )}
+          <p className="text-[10px] uppercase tracking-widest text-brand-charcoal/40 font-semibold">
+            Bibliotecă laterală
           </p>
+        </div>
+        <div className="relative">
+          <select
+            value={c.sideShelves.position}
+            onChange={(e) => setSideShelvesPosition(e.target.value as DressingSidePosition)}
+            className="w-full appearance-none bg-white border border-brand-beige/40 rounded-md px-2.5 py-1.5 pr-7 text-[11.5px] text-brand-dark font-medium focus:outline-none focus:ring-1 focus:ring-brand-accent/30 focus:border-brand-accent/50 transition-all"
+          >
+            {DRESSING_SIDE_POSITION_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>{opt.name}</option>
+            ))}
+          </select>
+          <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-brand-charcoal/40 pointer-events-none" />
         </div>
 
         {c.sideShelves.position !== 'none' && (
-          <>
+          <div className="space-y-1.5 pt-1">
             <ParamSlider
-              label="Coloane (faţă-spate)"
+              label="Coloane"
               value={c.sideShelves.columns}
               {...DRESSING_UNIT_LIMITS.sideColumns}
               unit="buc"
               onChange={setSideShelvesColumns}
             />
             <ParamSlider
-              label="Lăţime bibliotecă (exterior)"
+              label="Lățime"
               value={c.sideShelves.columnWidth}
               {...DRESSING_UNIT_LIMITS.sideColumnWidth}
               unit="mm"
@@ -278,23 +392,26 @@ function ParametersStep() {
               onChange={setSideShelvesColumnWidth}
             />
             <ParamSlider
-              label="Rafturi per coloană"
+              label="Rafturi / coloană"
               value={c.sideShelves.shelfCount}
               {...DRESSING_UNIT_LIMITS.sideShelfCount}
               unit="buc"
               onChange={setSideShelvesShelfCount}
             />
-          </>
+          </div>
         )}
       </div>
 
       {/* Dimensions bar */}
-      <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#F5F3EE] text-[12px] shrink-0 mt-auto">
-        <span className="text-brand-charcoal/55">Dimensiuni</span>
-        <div className="flex items-center gap-3 font-semibold text-brand-dark tabular-nums">
-          <span>L <span className="text-brand-charcoal/80">{Math.round(c.totalWidth * 10)}</span></span>
-          <span>H <span className="text-brand-charcoal/80">{c.totalHeight * 10}</span></span>
-          <span>A <span className="text-brand-charcoal/80">{c.depth * 10}</span></span>
+      <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-[#F5F3EE] text-[11.5px] shrink-0 mt-auto mx-4 lg:mx-[25px] mb-2 border border-brand-beige/30">
+        <span className="text-brand-charcoal/55 font-medium flex items-center gap-1">
+          <Ruler className="w-3 h-3" />
+          Total
+        </span>
+        <div className="flex items-center gap-2.5 font-semibold text-brand-dark tabular-nums">
+          <span title="Lățime totală">L <span className="text-brand-accent">{Math.round(c.totalWidth * 10)}</span></span>
+          <span title="Înălțime totală">H <span className="text-brand-accent">{c.totalHeight * 10}</span></span>
+          <span title="Adâncime">A <span className="text-brand-accent">{c.depth * 10}</span></span>
           <span className="text-brand-charcoal/45 font-normal">mm</span>
         </div>
       </div>

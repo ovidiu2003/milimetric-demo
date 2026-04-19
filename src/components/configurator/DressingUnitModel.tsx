@@ -225,10 +225,10 @@ export default function DressingUnitModel() {
 
   return (
     <group ref={groupRef}>
-      {/* ═══════════ PLINTA (continua sub toate modulele) ═══════════ */}
+      {/* ═══════════ PLINTA (doar sub module, nu sub biblioteca laterala) ═══════════ */}
       {PL > 0 && (
-        <mesh position={[0, PL / 2, 0]} castShadow receiveShadow>
-          <boxGeometry args={[totalW - 0.04, PL, D - 0.06]} />
+        <mesh position={[modulesLeftX + modulesW / 2, PL / 2, 0]} castShadow receiveShadow>
+          <boxGeometry args={[modulesW - 0.04, PL, D - 0.06]} />
           <meshStandardMaterial {...bodyMatProps} color="#2a2218" map={undefined} />
         </mesh>
       )}
@@ -279,7 +279,7 @@ export default function DressingUnitModel() {
         );
       })}
 
-      {/* ═══════════ BIBLIOTECA LATERALA (side shelves, deschidere in lateral) ═══════════ */}
+      {/* ═══════════ BIBLIOTECA LATERALA (side shelves, deschidere in lateral, FARA plinta) ═══════════ */}
       {hasLeftSide && (
         <SideShelvesGroup
           startX={fullLeftX}
@@ -287,8 +287,8 @@ export default function DressingUnitModel() {
           columns={sideCfg.columns}
           columnWidth={sideCfg.columnWidth * S}
           shelfCount={sideCfg.shelfCount}
-          bodyY0={bodyY0}
-          bodyH={bodyTotalH}
+          bodyY0={0}
+          bodyH={H}
           D={D}
           T={T}
           bodyMatProps={bodyMatProps}
@@ -303,8 +303,8 @@ export default function DressingUnitModel() {
           columns={sideCfg.columns}
           columnWidth={sideCfg.columnWidth * S}
           shelfCount={sideCfg.shelfCount}
-          bodyY0={bodyY0}
-          bodyH={bodyTotalH}
+          bodyY0={0}
+          bodyH={H}
           D={D}
           T={T}
           bodyMatProps={bodyMatProps}
@@ -362,7 +362,7 @@ function ModuleGroup(props: ModuleProps) {
   const innerTopY = bodyY0 + bodyH - T;
   const innerH = innerTopY - innerBottomY;
   const hasTop = topCompH > 0;
-  const hasDoors = module.hasDoors && module.interiorType !== 'rafturi-deschise';
+  const hasDoors = module.hasDoors;
 
   // Corpul principal ocupa [bodyY0, bodyY0+bodyH]
   // Compartimentul superior (cutie independenta) sta DEASUPRA corpului principal:
@@ -470,16 +470,17 @@ function ModuleGroup(props: ModuleProps) {
         HANDLE_COLOR={HANDLE_COLOR}
       />
 
-      {/* Usi pe toata inaltimea modulului (corp principal + compartiment superior daca exista) */}
+      {/* Usi pe toata inaltimea modulului (de la podea pana la varf, acoperind si plinta) */}
       {hasDoors && (() => {
-        const fullDoorsH = bodyH + topCompH;
-        const fullDoorsMidY = bodyY0 + fullDoorsH / 2;
+        const fullDoorsH = bodyH + topCompH + bodyY0; // include plinta
+        const fullDoorsStart = 0;                      // de la podea
+        const fullDoorsMidY = fullDoorsStart + fullDoorsH / 2;
         return (
           <ModuleDoors
             moduleLeftX={moduleLeftX}
             moduleRightX={moduleRightX}
             moduleCenterX={moduleCenterX}
-            bodyY0={bodyY0}
+            bodyY0={fullDoorsStart}
             bodyH={fullDoorsH}
             bodyMidY={fullDoorsMidY}
             MW={MW}
@@ -623,10 +624,43 @@ function ModuleDoors({
   MW: number; D: number; T: number;
   frontMatProps: any; HANDLE_COLOR: string;
 }) {
-  const doorW = MW / 2 - 0.002; // 2mm gap between doors
   const doorH = bodyH - 0.004;
   const doorZ = D / 2 + T / 2;
-  const handleH = doorH * 0.55;
+  // Manerul: incepe de la partea de jos a frontului, pana la inaltimea de 1100mm
+  const HANDLE_TOP_Y = 1.10;                            // 1100mm de la podea (in Three units, S=0.01)
+  const handleBottomLocal = -doorH / 2;                 // partea de jos a usii (local)
+  const handleTopLocal = Math.min(doorH / 2, HANDLE_TOP_Y - bodyMidY);
+  const handleH = handleTopLocal - handleBottomLocal;
+  const handleCenterY = (handleBottomLocal + handleTopLocal) / 2;
+  // Sub 60cm (0.60 in Three.js units cu S=0.01) = o singura usa
+  const SINGLE_DOOR_THRESHOLD = 0.60;
+  const singleDoor = MW < SINGLE_DOOR_THRESHOLD;
+
+  if (singleDoor) {
+    const doorW = MW - 0.004; // o singura usa, lasa cate 2mm la fiecare capat
+    return (
+      <group>
+        <HoverDoor
+          hingeSide={-1}
+          hingePosition={[moduleLeftX + 0.001, bodyMidY, doorZ]}
+          panelWidth={doorW}
+        >
+          <mesh castShadow>
+            <boxGeometry args={[doorW, doorH, T]} />
+            <meshStandardMaterial {...frontMatProps} />
+            <Edges threshold={15} color="#2a2218" lineWidth={1} />
+          </mesh>
+          {/* maner vertical pe partea opusa balamalei - de la baza pana la 1100mm */}
+          <mesh position={[doorW / 2 - 0.015, handleCenterY, T / 2 + 0.005]}>
+            <boxGeometry args={[0.005, handleH, 0.01]} />
+            <meshStandardMaterial color={HANDLE_COLOR} metalness={0.4} roughness={0.45} />
+          </mesh>
+        </HoverDoor>
+      </group>
+    );
+  }
+
+  const doorW = MW / 2 - 0.002; // 2mm gap intre usi
 
   return (
     <group>
@@ -641,8 +675,8 @@ function ModuleDoors({
           <meshStandardMaterial {...frontMatProps} />
           <Edges threshold={15} color="#2a2218" lineWidth={1} />
         </mesh>
-        {/* vertical handle near inner edge (right side of left door) */}
-        <mesh position={[doorW / 2 - 0.015, 0, T / 2 + 0.005]}>
+        {/* maner vertical pe marginea interioara - de la baza pana la 1100mm */}
+        <mesh position={[doorW / 2 - 0.015, handleCenterY, T / 2 + 0.005]}>
           <boxGeometry args={[0.005, handleH, 0.01]} />
           <meshStandardMaterial color={HANDLE_COLOR} metalness={0.4} roughness={0.45} />
         </mesh>
@@ -659,8 +693,8 @@ function ModuleDoors({
           <meshStandardMaterial {...frontMatProps} />
           <Edges threshold={15} color="#2a2218" lineWidth={1} />
         </mesh>
-        {/* vertical handle near inner edge (left side of right door) */}
-        <mesh position={[-doorW / 2 + 0.015, 0, T / 2 + 0.005]}>
+        {/* maner vertical pe marginea interioara - de la baza pana la 1100mm */}
+        <mesh position={[-doorW / 2 + 0.015, handleCenterY, T / 2 + 0.005]}>
           <boxGeometry args={[0.005, handleH, 0.01]} />
           <meshStandardMaterial color={HANDLE_COLOR} metalness={0.4} roughness={0.45} />
         </mesh>
@@ -701,12 +735,7 @@ function SideShelvesGroup({
   const centerX = startX + libDepthX / 2;
   const bodyMidY = bodyY0 + bodyH / 2;
   const topY = bodyY0 + bodyH;
-  const frontZ = D / 2;
   const backZ = -D / 2;
-
-  // Spate (catre dressing) - pe partea interioara
-  const innerFaceX = side === 'left' ? startX + libDepthX : startX; // X unde se lipeste de dressing
-  const backPanelOffset = side === 'left' ? -T / 4 : T / 4;
 
   // Separatoare interioare intre coloane: la pozitii Z = backZ + i*(D/columns), i=1..columns-1
   const zStep = D / columns;
@@ -716,16 +745,18 @@ function SideShelvesGroup({
   // Rafturi per coloana
   const shelves: React.ReactNode[] = [];
   for (let c = 0; c < columns; c++) {
-    const colZMin = backZ + c * zStep + (c === 0 ? T / 2 : T / 2);
-    const colZMax = backZ + (c + 1) * zStep - (c === columns - 1 ? T / 2 : T / 2);
+    // Prima coloana: incepe de la spate (+T pentru spatele bibliotecii)
+    // Ultima coloana: se intinde pana la frontul bibliotecii (D/2 + T/2, dar fara sa intre in el)
+    const colZMin = c === 0 ? backZ + T : backZ + c * zStep + T / 2;
+    const colZMax = c === columns - 1 ? D / 2 + T / 2 - 0.002 : backZ + (c + 1) * zStep - T / 2;
     const innerZW = colZMax - colZMin;
     const innerCenterZ = (colZMin + colZMax) / 2;
     const innerBottomY = bodyY0 + T;
     const innerTopY = topY - T;
     const innerH = innerTopY - innerBottomY;
-    // Raftul intra de la fata catre spate dar nu atinge panoul dressingului
-    const shelfInnerW = libDepthX - T * 2; // scade T pentru spate catre dressing si T pentru aer la fata
-    const shelfCenterX = centerX + (side === 'left' ? -T / 2 : T / 2);
+    // Raftul se extinde pe toata latimea bibliotecii (cu mic offset de siguranta)
+    const shelfInnerW = libDepthX - T;
+    const shelfCenterX = centerX;
 
     for (let s = 1; s <= shelfCount; s++) {
       const sy = innerBottomY + (innerH / (shelfCount + 1)) * s;
@@ -747,43 +778,43 @@ function SideShelvesGroup({
   return (
     <group>
       {/* Panou FATA - facade in culoarea frontului (ca usile),
-          pozitionat in acelasi plan cu usile dressingului (D/2 + T/2) */}
+          pozitionat in acelasi plan cu usile dressingului (D/2 + T/2),
+          pe toata inaltimea (de la podea la varf, fara plinta) */}
       <mesh position={[centerX, bodyMidY, D / 2 + T / 2]} castShadow receiveShadow>
         <boxGeometry args={[libDepthX, bodyH - 0.004, T]} />
         <meshStandardMaterial {...frontMatProps} />
         <Edges threshold={15} color="#2a2218" lineWidth={1} />
       </mesh>
 
-      {/* Panou SPATE (catre interior, la Z = -D/2) */}
-      <mesh position={[centerX, bodyMidY, backZ + T / 2]} castShadow receiveShadow>
-        <boxGeometry args={[libDepthX, bodyH, T]} />
-        <meshStandardMaterial {...bodyMatProps} />
-        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
-      </mesh>
+      {/* SPATE individual al bibliotecii - panou complet de la podea la top,
+          pozitionat la capatul din spate (Z = -D/2) */}
+      {(() => {
+        const backH = bodyY0 + bodyH;  // de la podea (Y=0) pana la top
+        const backMidY = backH / 2;
+        return (
+          <mesh position={[centerX, backMidY, backZ + T / 2]} castShadow receiveShadow>
+            <boxGeometry args={[libDepthX, backH, T]} />
+            <meshStandardMaterial {...bodyMatProps} />
+            <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
+          </mesh>
+        );
+      })()}
 
-      {/* Top cap */}
-      <mesh position={[centerX, topY - T / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[libDepthX, T, D]} />
-        <meshStandardMaterial {...bodyMatPropsH} />
-        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
-      </mesh>
-
-      {/* Bottom cap */}
-      <mesh position={[centerX, bodyY0 + T / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[libDepthX, T, D]} />
-        <meshStandardMaterial {...bodyMatPropsH} />
-        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
-      </mesh>
-
-      {/* Spate catre dressing - panou subtire pe partea interioara */}
-      <mesh
-        position={[innerFaceX + backPanelOffset, bodyMidY, 0]}
-        castShadow
-        receiveShadow
-      >
-        <boxGeometry args={[T / 2, bodyH - 2 * T, D - 2 * T]} />
-        <meshStandardMaterial {...bodyMatProps} />
-      </mesh>
+      {/* PANOU LATERAL pe partea unde biblioteca se lipeste de modul -
+          perete vertical individual, de la podea la top */}
+      {(() => {
+        const panelH = bodyY0 + bodyH;
+        const panelMidY = panelH / 2;
+        // Partea interioara: pentru 'left' = fata dreapta (X mare); pentru 'right' = fata stanga (X mic)
+        const innerX = side === 'left' ? startX + libDepthX - T / 2 : startX + T / 2;
+        return (
+          <mesh position={[innerX, panelMidY, 0]} castShadow receiveShadow>
+            <boxGeometry args={[T, panelH, D]} />
+            <meshStandardMaterial {...bodyMatProps} />
+            <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
+          </mesh>
+        );
+      })()}
 
       {/* Separatoare verticale intre coloane (pe Z) */}
       {separatorZs.map((z, i) => (

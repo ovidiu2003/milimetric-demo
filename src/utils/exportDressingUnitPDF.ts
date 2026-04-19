@@ -145,53 +145,55 @@ function generateDressingPiecesList(config: DressingUnitConfig): PieceInfo[] {
         break;
     }
 
-    // Usi pe toata inaltimea (corp principal + compartiment superior daca exista)
-    if (m.hasDoors && m.interiorType !== 'rafturi-deschise') {
-      const fullDoorH = mainH + topH;
+    // Usi pe toata inaltimea - de la podea pana la varf (acopera si plinta)
+    // Toate modulele au usi structural
+    {
+      const fullDoorH = mainH + topH + config.plinthHeight; // include plinta
+      const singleDoor = m.width < 60; // sub 600mm = o singura usa
       pieces.push({
-        name: `Usa (toata inaltimea) ${tag}`,
-        length: round1(mw / 2 - 0.2),
+        name: `Usa (pana la podea) ${tag}`,
+        length: singleDoor ? round1(mw - 0.4) : round1(mw / 2 - 0.2),
         width: round1(fullDoorH - 0.4),
         thickness: t,
-        qty: 2,
+        qty: singleDoor ? 1 : 2,
         material: front,
       });
     }
   });
 
-  // Biblioteca laterala (side shelves): deschidere in lateral
+  // Biblioteca laterala (side shelves): deschidere in lateral, FARA plinta, FARA top/bottom cap
   const s = config.sideShelves;
   if (s.position !== 'none') {
     const sides = s.position === 'both' ? 2 : 1;
     const libDepth = s.columnWidth;       // cat iese in afara (X)
     const libZ = config.depth;            // adancime (aliniata cu dressingul)
-    const bodyH = config.totalHeight - config.plinthHeight;
+    const libH = config.totalHeight;      // inaltimea totala (de la podea)
     const shelfZ = libZ / s.columns;
 
-    // Panouri fata + spate (pe axa Z)
+    // Front (in culoarea frontului, de la podea la varf)
     pieces.push({
-      name: 'Panou fata/spate biblioteca',
-      length: round1(bodyH),
+      name: 'Front biblioteca (pana la podea)',
+      length: round1(libH - 0.4),
+      width: round1(libDepth - 0.4),
+      thickness: t,
+      qty: sides,
+      material: front,
+    });
+    // Spate individual al bibliotecii (de la podea la top)
+    pieces.push({
+      name: 'Spate biblioteca (individual, pana la podea)',
+      length: round1(libH),
       width: round1(libDepth),
       thickness: t,
-      qty: sides * 2,
+      qty: sides,
       material: body,
     });
-    // Top + bottom cap
+    // Panou lateral intre biblioteca si modul (de la podea la top)
     pieces.push({
-      name: 'Top/Bottom biblioteca',
-      length: round1(libDepth),
+      name: 'Panou lateral biblioteca (spre modul)',
+      length: round1(libH),
       width: round1(libZ),
       thickness: t,
-      qty: sides * 2,
-      material: body,
-    });
-    // Spate catre dressing (subtire)
-    pieces.push({
-      name: 'Spate biblioteca (catre dressing)',
-      length: round1(libZ - 2 * t),
-      width: round1(bodyH - 2 * t),
-      thickness: round1(t / 2),
       qty: sides,
       material: body,
     });
@@ -199,7 +201,7 @@ function generateDressingPiecesList(config: DressingUnitConfig): PieceInfo[] {
     if (s.columns > 1) {
       pieces.push({
         name: 'Separator intern biblioteca',
-        length: round1(bodyH),
+        length: round1(libH),
         width: round1(libDepth),
         thickness: t,
         qty: sides * (s.columns - 1),
@@ -209,7 +211,7 @@ function generateDressingPiecesList(config: DressingUnitConfig): PieceInfo[] {
     // Rafturi
     pieces.push({
       name: 'Raft biblioteca laterala',
-      length: round1(libDepth - 2 * t),
+      length: round1(libDepth - t),
       width: round1(shelfZ - t),
       thickness: t,
       qty: sides * s.columns * s.shelfCount,
@@ -262,16 +264,16 @@ function drawFrontView(doc: jsPDF, config: DressingUnitConfig, x: number, y: num
   const leftSideW = hasLeft ? sideUnitW : 0;
   const modulesOffsetX = offsetX + leftSideW;
 
-  // Draw side libraries as solid panels (din fata se vede doar panoul exterior - deschiderea e in lateral)
+  // Draw side libraries as solid panels (front pana la podea, fara top/bottom)
   const drawSideBand = (bandX: number) => {
-    // Panou plin (panoul fata al bibliotecii)
+    // Panou plin (frontul bibliotecii) - de la podea pana la top
     doc.setDrawColor(120, 120, 120);
     doc.setLineWidth(0.35);
-    doc.rect(bandX, offsetY, sideUnitW, bodyH);
-    // Eticheta "Bibliotecă"
+    doc.rect(bandX, offsetY, sideUnitW, drawH);
+    // Eticheta "Biblioteca"
     doc.setFontSize(5);
     doc.setTextColor(140, 140, 140);
-    doc.text('Bibl.', bandX + sideUnitW / 2, offsetY + bodyH / 2, {
+    doc.text('Bibl.', bandX + sideUnitW / 2, offsetY + drawH / 2, {
       align: 'center',
       angle: 90,
     });
@@ -294,68 +296,27 @@ function drawFrontView(doc: jsPDF, config: DressingUnitConfig, x: number, y: num
     // Compartiment superior (daca exista)
     const topH = m.hasTopCompartment ? m.topCompartmentHeight * scale : 0;
     const mainH = bodyH - topH;
-    const hasDoors = m.hasDoors && m.interiorType !== 'rafturi-deschise';
-
-    if (hasDoors) {
-      // Usi pe toata inaltimea modulului - se deseneaza un singur panou de usi
+    // Toate modulele au usi structural
+    {
+      // Usi de la podea pana la varf (acopera si plinta in fata)
       const fullInnerY = offsetY + tScaled;
-      const fullInnerH = bodyH - 2 * tScaled;
+      const fullInnerH = drawH - 2 * tScaled; // include plinta
+      const singleDoor = m.width < 60;
       doc.setDrawColor(170, 170, 170);
       doc.setLineWidth(0.25);
-      doc.rect(innerX, fullInnerY, innerW / 2, fullInnerH);
-      doc.rect(innerX + innerW / 2, fullInnerY, innerW / 2, fullInnerH);
-      // Manere verticale in mijloc
-      doc.setFillColor(40, 30, 20);
-      doc.rect(innerX + innerW / 2 - 1.5, fullInnerY + fullInnerH * 0.2, 0.5, fullInnerH * 0.6, 'F');
-      doc.rect(innerX + innerW / 2 + 1, fullInnerY + fullInnerH * 0.2, 0.5, fullInnerH * 0.6, 'F');
-    } else {
-      if (topH > 0) {
-        // linie despartitoare intre top compartiment si corp principal
-        doc.setDrawColor(120, 120, 120);
-        doc.setLineWidth(0.35);
-        const dividerY = offsetY + topH;
-        doc.line(mx, dividerY, mx + mwScaled, dividerY);
-
-        // continut top compartiment deschis - o polita simbolica
-        const topInnerY = offsetY + tScaled;
-        const topInnerH = topH - 2 * tScaled;
-        doc.setDrawColor(210, 210, 210);
-        doc.line(innerX, topInnerY + topInnerH * 0.5, innerX + innerW, topInnerY + topInnerH * 0.5);
-      }
-
-      // corp principal deschis
-      const innerY = offsetY + topH + tScaled;
-      const innerH = mainH - 2 * tScaled;
-      doc.setDrawColor(200, 200, 200);
-      if (m.interiorType === 'rafturi-deschise') {
-        for (let s = 1; s <= 6; s++) {
-          const sy = innerY + (innerH / 7) * s;
-          doc.line(innerX, sy, innerX + innerW, sy);
-        }
-      } else if (m.interiorType === 'rafturi') {
-        for (let s = 1; s <= 4; s++) {
-          const sy = innerY + (innerH / 5) * s;
-          doc.line(innerX, sy, innerX + innerW, sy);
-        }
-      } else if (m.interiorType === 'bara-raft') {
-        const shelfY = innerY + innerH * 0.75;
-        const barY = innerY + innerH * 0.12;
-        doc.line(innerX, shelfY, innerX + innerW, shelfY);
-        doc.setDrawColor(120, 120, 120);
-        doc.line(innerX + 2, barY, innerX + innerW - 2, barY);
+      if (singleDoor) {
+        // O singura usa care acopera tot interiorul
+        doc.rect(innerX, fullInnerY, innerW, fullInnerH);
+        // Maner vertical pe partea dreapta (balama stanga)
+        doc.setFillColor(40, 30, 20);
+        doc.rect(innerX + innerW - 2, fullInnerY + fullInnerH * 0.2, 0.5, fullInnerH * 0.6, 'F');
       } else {
-        const drawerH = innerH * 0.18;
-        const d1Y = innerY + innerH - drawerH;
-        const d2Y = d1Y - drawerH - 1;
-        const shelfY = d2Y - 2;
-        const barY = innerY + innerH * 0.08;
-        doc.setDrawColor(170, 170, 170);
-        doc.rect(innerX, d1Y, innerW, drawerH);
-        doc.rect(innerX, d2Y, innerW, drawerH);
-        doc.setDrawColor(200, 200, 200);
-        doc.line(innerX, shelfY, innerX + innerW, shelfY);
-        doc.setDrawColor(120, 120, 120);
-        doc.line(innerX + 2, barY, innerX + innerW - 2, barY);
+        doc.rect(innerX, fullInnerY, innerW / 2, fullInnerH);
+        doc.rect(innerX + innerW / 2, fullInnerY, innerW / 2, fullInnerH);
+        // Manere verticale in mijloc
+        doc.setFillColor(40, 30, 20);
+        doc.rect(innerX + innerW / 2 - 1.5, fullInnerY + fullInnerH * 0.2, 0.5, fullInnerH * 0.6, 'F');
+        doc.rect(innerX + innerW / 2 + 1, fullInnerY + fullInnerH * 0.2, 0.5, fullInnerH * 0.6, 'F');
       }
     }
 
@@ -510,7 +471,7 @@ function createDressingUnitPDF(config: DressingUnitConfig) {
   ];
   config.modules.forEach((m, i) => {
     const opt = DRESSING_INTERIOR_OPTIONS.find((o) => o.id === m.interiorType);
-    const doorLabel = m.interiorType === 'rafturi-deschise' ? 'fara usi (deschis)' : m.hasDoors ? '2 usi batante cu maner vertical' : 'deschis';
+    const doorLabel = m.width < 60 ? '1 usa batanta cu maner vertical' : '2 usi batante cu maner vertical';
     const topLabel = m.hasTopCompartment ? `, compartiment superior ${Math.round(m.topCompartmentHeight * 10)} mm` : '';
     detailLines.push(`Modul ${i + 1} (${Math.round(m.width * 10)} mm): ${opt?.name || m.interiorType} - ${doorLabel}${topLabel}`);
   });
