@@ -11,8 +11,8 @@ export const PANEL_T_CM = 1.8;  // grosime panou (corespunde T=1.8cm real)
 
 export const DRESSING_UNIT_LIMITS = {
   moduleCount:          { min: 1, max: 6, step: 1 },
-  moduleWidth:          { min: 30, max: 150, step: 0.1 },
-  totalModulesWidth:    { min: 30, max: 900, step: 0.1 },  // suma latimilor modulelor (fara biblioteca)
+  moduleWidth:          { min: 30, max: 120, step: 0.1 },  // max 120cm (lățime usă max 600mm × 2)
+  totalModulesWidth:    { min: 30, max: 720, step: 0.1 },  // suma latimilor modulelor (fara biblioteca)
   totalHeight:          { min: 200, max: 280, step: 0.1 },
   depth:                { min: 50, max: 65, step: 0.1 },
   plinthHeight:         { min: 0, max: 15, step: 0.1 },
@@ -29,7 +29,7 @@ export const DRESSING_UNIT_LIMITS = {
 export const SECTION_MIN_HEIGHT: Record<DressingSectionType, number> = {
   'drawers':           24,   // min 1 sertar util (12cm x 2 spatii)
   'shelves':           20,   // min un compartiment deschis
-  'hanging-rod':       60,   // min pt haine scurte (bluze, camasi)
+  'hanging-rod':       110,  // min 1100mm pt haine (standard croitorie)
   'shoe-rack':         35,   // min 2 rafturi inclinate
   'pull-out-trouser':  40,   // min 3 bare pantaloni
   'pull-out-basket':   25,   // min 1 cos
@@ -41,7 +41,7 @@ export const SECTION_MIN_HEIGHT: Record<DressingSectionType, number> = {
 export const SECTION_DEFAULT_HEIGHT: Record<DressingSectionType, number> = {
   'drawers':           45,   // 2 sertare standard
   'shelves':           60,   // 2-3 compartimente
-  'hanging-rod':       100,  // haine medii
+  'hanging-rod':       140,  // haine medii-lungi (min 1100mm realist)
   'shoe-rack':         70,   // 3 rafturi pantofi
   'pull-out-trouser':  60,   // 4 bare pantaloni
   'pull-out-basket':   50,   // 2 cosuri
@@ -203,6 +203,149 @@ export const DRESSING_MODULE_PRESETS: DressingModulePreset[] = [
       ];
     },
   },
+  // 9. SHELVES + DRAWERS (Tylko: "Shelves + Drawers")
+  {
+    id: 'shelves-drawers',
+    name: 'Rafturi + sertare',
+    description: 'Rafturi sus pentru pulovere/cutii, sertare jos pentru lenjerie.',
+    schematic: [
+      { type: 'shelves', flex: 0.65, shelves: 4 },
+      { type: 'drawers', flex: 0.35, drawers: 3 },
+    ],
+    build: (H) => {
+      const drawers = Math.min(75, Math.max(50, Math.round(H * 0.35)));
+      const shelves = Math.max(60, H - drawers);
+      return [
+        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 3 },
+        { id: newSectionId(), type: 'shelves', heightCm: shelves, shelfCount: 4 },
+      ];
+    },
+  },
+  // 10. MIRROR + HANG (oglindă plus bară)
+  {
+    id: 'mirror-hang',
+    name: 'Oglindă + bară',
+    description: 'Panou oglindă sus, bară de haine dedesubt — util pentru dressing-uri mici.',
+    schematic: [
+      { type: 'mirror', flex: 0.45 },
+      { type: 'hanging-rod', flex: 0.55 },
+    ],
+    build: (H) => {
+      const mirror = Math.max(80, Math.round(H * 0.45));
+      const hang = Math.max(60, H - mirror);
+      return [
+        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
+        { id: newSectionId(), type: 'mirror', heightCm: mirror },
+      ];
+    },
+  },
+  // 11. SHOES + DRAWERS (pantofi sus, sertare jos sau invers)
+  {
+    id: 'shoes-drawers',
+    name: 'Pantofi + sertare',
+    description: 'Rafturi înclinate pentru pantofi, sertare jos pentru șosete și accesorii.',
+    schematic: [
+      { type: 'shoe-rack', flex: 0.6 },
+      { type: 'drawers', flex: 0.4, drawers: 3 },
+    ],
+    build: (H) => {
+      const drawers = Math.min(75, Math.max(50, Math.round(H * 0.4)));
+      const shoes = Math.max(60, H - drawers);
+      return [
+        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 3 },
+        { id: newSectionId(), type: 'shoe-rack', heightCm: shoes, shoeCount: Math.max(3, Math.round(shoes / 25)) },
+      ];
+    },
+  },
+  // 12. TRIPLE SHELVES SPLIT (3 zone rafturi cu intervale diferite)
+  {
+    id: 'shelves-triple',
+    name: 'Rafturi triple',
+    description: 'Trei zone de rafturi cu distanțe diferite — cutii jos, pulovere mijloc, decorațiuni sus.',
+    schematic: [
+      { type: 'shelves', flex: 0.3, shelves: 2 },
+      { type: 'shelves', flex: 0.35, shelves: 3 },
+      { type: 'shelves', flex: 0.35, shelves: 2 },
+    ],
+    build: (H) => {
+      const bot = Math.round(H * 0.3);
+      const mid = Math.round(H * 0.35);
+      const top = Math.max(40, H - bot - mid);
+      return [
+        { id: newSectionId(), type: 'shelves', heightCm: bot, shelfCount: 2 },
+        { id: newSectionId(), type: 'shelves', heightCm: mid, shelfCount: 3 },
+        { id: newSectionId(), type: 'shelves', heightCm: top, shelfCount: 2 },
+      ];
+    },
+  },
+  // 13. BASKETS ONLY (coșuri metalice)
+  {
+    id: 'baskets-only',
+    name: 'Doar coșuri',
+    description: 'Coloană completă de coșuri din sârmă — ideal pentru tricouri, lenjerie, textile.',
+    schematic: [{ type: 'pull-out-basket', flex: 1 }],
+    build: (H) => [{ id: newSectionId(), type: 'pull-out-basket', heightCm: Math.max(80, H), basketCount: Math.max(3, Math.round(H / 30)) }],
+  },
+  // 14. HANG + SHELVES + DRAWERS (Tylko: "Hang + Shelves + Drawers" — compoziție triplă)
+  {
+    id: 'hang-shelves-drawers',
+    name: 'Bară + rafturi + sertare',
+    description: 'Bară sus, două rafturi mijloc, sertare jos — cea mai versatilă compoziție.',
+    schematic: [
+      { type: 'hanging-rod', flex: 0.45 },
+      { type: 'shelves', flex: 0.25, shelves: 2 },
+      { type: 'drawers', flex: 0.3, drawers: 2 },
+    ],
+    build: (H) => {
+      const drawers = Math.min(70, Math.max(45, Math.round(H * 0.3)));
+      const shelves = Math.max(40, Math.round(H * 0.25));
+      const hang = Math.max(70, H - drawers - shelves);
+      return [
+        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 2 },
+        { id: newSectionId(), type: 'shelves', heightCm: shelves, shelfCount: 2 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
+      ];
+    },
+  },
+  // 15. TROUSERS + HANG (pantaloni jos, bară sus)
+  {
+    id: 'trousers-hang',
+    name: 'Pantaloni + bară',
+    description: 'Suport pantaloni cu bare extensibile jos, bară pentru sacouri/cămăși sus.',
+    schematic: [
+      { type: 'hanging-rod', flex: 0.6 },
+      { type: 'pull-out-trouser', flex: 0.4 },
+    ],
+    build: (H) => {
+      const trousers = Math.min(70, Math.max(50, Math.round(H * 0.4)));
+      const hang = Math.max(70, H - trousers);
+      return [
+        { id: newSectionId(), type: 'pull-out-trouser', heightCm: trousers, trouserRodCount: 4 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
+      ];
+    },
+  },
+  // 16. DRAWERS + SHELVES + MIRROR (dressing tip damă: oglindă sus)
+  {
+    id: 'vanity',
+    name: 'Dressing cu oglindă',
+    description: 'Oglindă sus, bară de haine mijloc, sertare jos — stil dressing feminin.',
+    schematic: [
+      { type: 'mirror', flex: 0.3 },
+      { type: 'hanging-rod', flex: 0.4 },
+      { type: 'drawers', flex: 0.3, drawers: 3 },
+    ],
+    build: (H) => {
+      const drawers = Math.min(70, Math.max(50, Math.round(H * 0.3)));
+      const mirror = Math.max(60, Math.round(H * 0.3));
+      const hang = Math.max(60, H - drawers - mirror);
+      return [
+        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 3 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
+        { id: newSectionId(), type: 'mirror', heightCm: mirror },
+      ];
+    },
+  },
 ];
 
 // ===== DEFAULTS =====
@@ -358,6 +501,7 @@ const defaultConfig: DressingUnitConfig = {
   plinthHeight: DRESSING_PRESETS[0].plinthHeight,
   bodyMaterialId: 'EGGER_H3730_ST10_Natural Hickory',
   frontMaterialId: 'EGGER_W1100_ST9_Alpine White',
+  sideMaterialId: 'EGGER_H3730_ST10_Natural Hickory',
 };
 
 function clamp(v: number, min: number, max: number) {
@@ -677,6 +821,10 @@ interface DressingUnitState {
   selectedModuleIdx: number | null;
   setSelectedModule: (idx: number | null) => void;
 
+  /** UI-only: afișează cote dimensionale peste modulele 3D */
+  showDimensions: boolean;
+  toggleShowDimensions: () => void;
+
   setModuleCount: (v: number) => void;
   setTotalModulesWidth: (v: number) => void;
   setTotalHeight: (v: number) => void;
@@ -712,6 +860,7 @@ interface DressingUnitState {
 
   setBodyMaterial: (id: string) => void;
   setFrontMaterial: (id: string) => void;
+  setSideMaterial: (id: string) => void;
 
   nextStep: () => void;
   prevStep: () => void;
@@ -752,6 +901,9 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
 
   selectedModuleIdx: null,
   setSelectedModule: (idx) => set({ selectedModuleIdx: idx }),
+
+  showDimensions: false,
+  toggleShowDimensions: () => set((s) => ({ showDimensions: !s.showDimensions })),
 
   setModuleCount: (v) => {
     const prev = get().config;
@@ -1200,6 +1352,11 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
   setBodyMaterial: (id) => {
     const prev = get().config;
     commit(set, { ...prev, bodyMaterialId: id });
+  },
+
+  setSideMaterial: (id) => {
+    const prev = get().config;
+    commit(set, { ...prev, sideMaterialId: id });
   },
 
   setFrontMaterial: (id) => {

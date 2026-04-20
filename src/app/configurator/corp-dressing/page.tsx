@@ -8,10 +8,8 @@ import { EffectComposer, SSAO, SMAA } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
 import Link from 'next/link';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, Ruler } from 'lucide-react';
 import DressingUnitPanel from '@/components/configurator/DressingUnitPanel';
-import TylkoBottomDock from '@/components/configurator/TylkoBottomDock';
-import PriceHUD from '@/components/configurator/PriceHUD';
 import { useDressingUnitStore } from '@/store/dressingUnitStore';
 
 const DressingUnitModel = dynamic(
@@ -24,54 +22,67 @@ function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heig
   const w = widthCm * scale;
   const h = heightCm * scale;
   const d = depthCm * scale;
-  const offset = 0.12;
-  const yGuide = 0.04;
-  const arrowLen = 0.02;
-  const arrowWing = 0.01;
-  const widthColor = '#c2410c';
-  const heightColor = '#166534';
-  const depthColor = '#1d4ed8';
+
+  // Blueprint stil tehnic
+  const INK = '#0f172a';            // cerneală — navy foarte închis
+  const EXT_GAP = 0.03;             // spațiu gol între obiect și începutul liniei de extensie
+  const OFFSET = 0.18;              // cât de departe de obiect stă linia de cotă
+  const TICK = 0.018;               // mărimea serifului (tick la 45°)
 
   const labelStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.9)',
-    border: '1px solid rgba(31,41,55,0.2)',
-    borderRadius: '6px',
-    padding: '2px 6px',
-    fontSize: '11px',
-    fontWeight: 400,
-    fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    color: INK,
+    fontSize: '10px',
+    fontWeight: 600,
+    fontFamily: "ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace",
     fontVariantNumeric: 'tabular-nums',
-    color: '#111827',
+    letterSpacing: '0.04em',
     whiteSpace: 'nowrap',
+    padding: '1px 4px',
+    background: 'rgba(255,255,255,0.92)',
+    borderRadius: 2,
+    textShadow: '0 0 2px #fff, 0 0 2px #fff',
+    pointerEvents: 'none',
   };
+
+  // Coordonate reper
+  const zLine = d / 2 + OFFSET;        // linia de cotă pentru lățime — față
+  const xLineL = -w / 2 - OFFSET;      // linia de cotă pentru înălțime — stânga
+  const xLineR = w / 2 + OFFSET;       // linia de cotă pentru adâncime — dreapta
+  const yBase = 0.001;
 
   return (
     <>
-      <Line points={[[-w / 2, yGuide, d / 2 + offset], [w / 2, yGuide, d / 2 + offset]]} color={widthColor} lineWidth={1} />
-      <Line points={[[-w / 2, yGuide, d / 2 + offset], [-w / 2 + arrowLen, yGuide, d / 2 + offset + arrowWing]]} color={widthColor} lineWidth={1} />
-      <Line points={[[-w / 2, yGuide, d / 2 + offset], [-w / 2 + arrowLen, yGuide, d / 2 + offset - arrowWing]]} color={widthColor} lineWidth={1} />
-      <Line points={[[w / 2, yGuide, d / 2 + offset], [w / 2 - arrowLen, yGuide, d / 2 + offset + arrowWing]]} color={widthColor} lineWidth={1} />
-      <Line points={[[w / 2, yGuide, d / 2 + offset], [w / 2 - arrowLen, yGuide, d / 2 + offset - arrowWing]]} color={widthColor} lineWidth={1} />
-      <Html position={[0, yGuide + 0.03, d / 2 + offset]} center sprite>
-        <div style={{ ...labelStyle, borderColor: 'rgba(194,65,12,0.35)' }}>L {Math.round(widthCm * 10)} mm</div>
+      {/* ═════ LĂȚIME (față, sus pe sol) ═════ */}
+      {/* Linii de extensie (din colțurile obiectului până la linia de cotă) */}
+      <Line points={[[-w / 2, yBase, d / 2 + EXT_GAP], [-w / 2, yBase, zLine + TICK]]} color={INK} lineWidth={0.8} />
+      <Line points={[[ w / 2, yBase, d / 2 + EXT_GAP], [ w / 2, yBase, zLine + TICK]]} color={INK} lineWidth={0.8} />
+      {/* Linia de cotă */}
+      <Line points={[[-w / 2, yBase, zLine], [w / 2, yBase, zLine]]} color={INK} lineWidth={1} />
+      {/* Serife /  \ la capete */}
+      <Line points={[[-w / 2 - TICK, yBase, zLine + TICK], [-w / 2 + TICK, yBase, zLine - TICK]]} color={INK} lineWidth={1} />
+      <Line points={[[ w / 2 - TICK, yBase, zLine + TICK], [ w / 2 + TICK, yBase, zLine - TICK]]} color={INK} lineWidth={1} />
+      <Html position={[0, yBase, zLine]} center sprite zIndexRange={[100, 0]}>
+        <div style={labelStyle}>{Math.round(widthCm * 10)}</div>
       </Html>
 
-      <Line points={[[-w / 2 - offset, 0, d / 2 + offset], [-w / 2 - offset, h, d / 2 + offset]]} color={heightColor} lineWidth={1} />
-      <Line points={[[-w / 2 - offset, 0, d / 2 + offset], [-w / 2 - offset, arrowLen, d / 2 + offset + arrowWing]]} color={heightColor} lineWidth={1} />
-      <Line points={[[-w / 2 - offset, 0, d / 2 + offset], [-w / 2 - offset, arrowLen, d / 2 + offset - arrowWing]]} color={heightColor} lineWidth={1} />
-      <Line points={[[-w / 2 - offset, h, d / 2 + offset], [-w / 2 - offset, h - arrowLen, d / 2 + offset + arrowWing]]} color={heightColor} lineWidth={1} />
-      <Line points={[[-w / 2 - offset, h, d / 2 + offset], [-w / 2 - offset, h - arrowLen, d / 2 + offset - arrowWing]]} color={heightColor} lineWidth={1} />
-      <Html position={[-w / 2 - offset, h / 2, d / 2 + offset + 0.03]} center sprite>
-        <div style={{ ...labelStyle, borderColor: 'rgba(22,101,52,0.35)' }}>H {heightCm * 10} mm</div>
+      {/* ═════ ÎNĂLȚIME (stânga) ═════ */}
+      <Line points={[[-w / 2 - EXT_GAP, 0, d / 2], [xLineL - TICK, 0, d / 2]]} color={INK} lineWidth={0.8} />
+      <Line points={[[-w / 2 - EXT_GAP, h, d / 2], [xLineL - TICK, h, d / 2]]} color={INK} lineWidth={0.8} />
+      <Line points={[[xLineL, 0, d / 2], [xLineL, h, d / 2]]} color={INK} lineWidth={1} />
+      <Line points={[[xLineL - TICK, -TICK, d / 2], [xLineL + TICK, TICK, d / 2]]} color={INK} lineWidth={1} />
+      <Line points={[[xLineL - TICK, h - TICK, d / 2], [xLineL + TICK, h + TICK, d / 2]]} color={INK} lineWidth={1} />
+      <Html position={[xLineL, h / 2, d / 2]} center sprite zIndexRange={[100, 0]}>
+        <div style={labelStyle}>{heightCm * 10}</div>
       </Html>
 
-      <Line points={[[w / 2 + offset, yGuide, -d / 2], [w / 2 + offset, yGuide, d / 2]]} color={depthColor} lineWidth={1} />
-      <Line points={[[w / 2 + offset, yGuide, -d / 2], [w / 2 + offset + arrowWing, yGuide, -d / 2 + arrowLen]]} color={depthColor} lineWidth={1} />
-      <Line points={[[w / 2 + offset, yGuide, -d / 2], [w / 2 + offset - arrowWing, yGuide, -d / 2 + arrowLen]]} color={depthColor} lineWidth={1} />
-      <Line points={[[w / 2 + offset, yGuide, d / 2], [w / 2 + offset + arrowWing, yGuide, d / 2 - arrowLen]]} color={depthColor} lineWidth={1} />
-      <Line points={[[w / 2 + offset, yGuide, d / 2], [w / 2 + offset - arrowWing, yGuide, d / 2 - arrowLen]]} color={depthColor} lineWidth={1} />
-      <Html position={[w / 2 + offset + 0.03, yGuide + 0.02, 0]} center sprite>
-        <div style={{ ...labelStyle, borderColor: 'rgba(29,78,216,0.35)' }}>A {depthCm * 10} mm</div>
+      {/* ═════ ADÂNCIME (dreapta, orizontal pe sol) ═════ */}
+      <Line points={[[w / 2 + EXT_GAP, yBase, -d / 2], [xLineR + TICK, yBase, -d / 2]]} color={INK} lineWidth={0.8} />
+      <Line points={[[w / 2 + EXT_GAP, yBase,  d / 2], [xLineR + TICK, yBase,  d / 2]]} color={INK} lineWidth={0.8} />
+      <Line points={[[xLineR, yBase, -d / 2], [xLineR, yBase, d / 2]]} color={INK} lineWidth={1} />
+      <Line points={[[xLineR - TICK, yBase, -d / 2 - TICK], [xLineR + TICK, yBase, -d / 2 + TICK]]} color={INK} lineWidth={1} />
+      <Line points={[[xLineR - TICK, yBase,  d / 2 - TICK], [xLineR + TICK, yBase,  d / 2 + TICK]]} color={INK} lineWidth={1} />
+      <Html position={[xLineR, yBase, 0]} center sprite zIndexRange={[100, 0]}>
+        <div style={labelStyle}>{Math.round(depthCm * 10)}</div>
       </Html>
     </>
   );
@@ -79,6 +90,7 @@ function DimensionGuides({ widthCm, heightCm, depthCm }: { widthCm: number; heig
 
 function Scene({ isMobile }: { isMobile: boolean }) {
   const config = useDressingUnitStore((s) => s.config);
+  const showDimensions = useDressingUnitStore((s) => s.showDimensions);
   const floorTexture = useMemo(() => {
     const texture = new THREE.TextureLoader().load('/textures/textura_parchet.jpg');
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -156,11 +168,13 @@ function Scene({ isMobile }: { isMobile: boolean }) {
 
       <group position={[0, 0, furnitureZ]}>
         <DressingUnitModel />
-        <DimensionGuides
-          widthCm={config.totalWidth}
-          heightCm={config.totalHeight}
-          depthCm={config.depth}
-        />
+        {showDimensions && (
+          <DimensionGuides
+            widthCm={config.totalWidth}
+            heightCm={config.totalHeight}
+            depthCm={config.depth}
+          />
+        )}
       </group>
 
       <ContactShadows position={[0, 0.001, 0]} opacity={0.52} scale={12} blur={1.5} far={5} color="#2a2018" />
@@ -207,6 +221,8 @@ function LoadingFallback() {
 
 export default function CorpDressingPage() {
   const config = useDressingUnitStore((s) => s.config);
+  const showDimensions = useDressingUnitStore((s) => s.showDimensions);
+  const toggleShowDimensions = useDressingUnitStore((s) => s.toggleShowDimensions);
   const [isCanvasExpanded, setIsCanvasExpanded] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState('100dvh');
@@ -262,7 +278,7 @@ export default function CorpDressingPage() {
         >
           <div className="relative w-full h-full">
             <div className="absolute inset-0 bg-gradient-to-br from-[#f2f0ec] via-[#ece9e4] to-[#e6e3dd] lg:m-2.5 lg:rounded-xl overflow-hidden">
-              <div className="absolute top-2.5 left-2.5 lg:top-3 lg:left-3 z-10">
+              <div className="absolute top-2.5 left-2.5 lg:top-3 lg:left-3 z-10 flex items-center gap-2">
                 <div className="bg-white/70 backdrop-blur-xl rounded-xl px-3 py-1.5 lg:px-3.5 lg:py-2 shadow-lg border border-white/40 transition-all duration-200">
                   <div className="flex items-center gap-1.5 text-[10px] lg:text-[11px] font-semibold text-brand-charcoal/65 tabular-nums">
                     <span className="text-brand-charcoal/35">L</span><span>{Math.round(config.totalWidth)}</span>
@@ -273,6 +289,18 @@ export default function CorpDressingPage() {
                     <span className="text-brand-charcoal/35 text-[9px] lg:text-[10px] font-normal">cm</span>
                   </div>
                 </div>
+                <button
+                  onClick={toggleShowDimensions}
+                  title={showDimensions ? 'Ascunde dimensiunile' : 'Afișează dimensiunile'}
+                  className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 lg:px-3 lg:py-2 shadow-lg border transition-all duration-200 backdrop-blur-xl text-[10px] lg:text-[11px] font-semibold ${
+                    showDimensions
+                      ? 'bg-brand-accent text-white border-brand-accent/60 hover:bg-brand-accent/90'
+                      : 'bg-white/70 text-brand-charcoal/65 border-white/40 hover:bg-white/90'
+                  }`}
+                >
+                  <Ruler className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                  <span className="hidden sm:inline">Dimensiuni</span>
+                </button>
               </div>
 
               <button
@@ -302,15 +330,9 @@ export default function CorpDressingPage() {
 
               <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 hidden lg:block">
                 <div className="bg-white/50 backdrop-blur-xl rounded-full px-4 py-1.5 text-[11px] text-brand-charcoal/35 border border-white/30 shadow-sm">
-                  🖱️ Click și trage pentru a roti • Click pe un modul pentru a-l edita
+                  �️ Click și trage pentru a roti • Click pe un modul pentru a-l edita
                 </div>
               </div>
-
-              {/* Tylko-style dock: sliders dimensiuni */}
-              <TylkoBottomDock />
-
-              {/* Tylko-style HUD: preț + CTA */}
-              <PriceHUD />
             </div>
           </div>
         </div>

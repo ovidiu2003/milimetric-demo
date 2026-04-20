@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, RotateCcw, ShoppingCart, Download,
-  Ruler, Blocks, Sparkles, Truck, ChevronDown, Lock,
-  DoorOpen, DoorClosed, Plus, Minus,
+  Ruler, Blocks, Sparkles, Truck, ChevronDown, ChevronLeft, ChevronRight, Lock,
+  DoorOpen, DoorClosed, Plus, Minus, Eye, EyeOff,
   PanelLeft, PanelRight, PanelsTopLeft,
 } from 'lucide-react';
 import {
@@ -20,7 +20,6 @@ import {
 import { materialTypes, getBodyMaterials, getFrontMaterials, getMaterialById } from '@/data/materials';
 import { useTextures } from '@/hooks/useTextures';
 import OfferRequestModal from '@/components/configurator/OfferRequestModal';
-import ModuleStack from '@/components/configurator/ModuleStack';
 import {
   exportDressingUnitPDF,
   generateDressingUnitPDFBase64,
@@ -170,15 +169,15 @@ function LockedDimsBanner() {
 }
 
 /** Mini-thumbnail SVG pentru preset modul, inspirat de Tylko (reprezentare schematică a secțiunilor). */
-function ModulePresetThumb({ schematic, active }: { schematic: { type: string; flex: number; shelves?: number; drawers?: number }[]; active: boolean; }) {
+function ModulePresetThumb({ schematic, active, size = 'sm' }: { schematic: { type: string; flex: number; shelves?: number; drawers?: number }[]; active: boolean; size?: 'sm' | 'lg'; }) {
   const total = schematic.reduce((a, s) => a + s.flex, 0) || 1;
-  const H = 60;
-  const W = 44;
+  const H = size === 'lg' ? 110 : 60;
+  const W = size === 'lg' ? 72 : 44;
   let y = 0;
   const stroke = active ? '#b07e3e' : '#a5998b';
   const fill = active ? '#fbf5ec' : '#ffffff';
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-14" preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${W} ${H}`} className={size === 'lg' ? 'w-full h-[110px]' : 'w-full h-14'} preserveAspectRatio="none">
       <rect x="0.5" y="0.5" width={W - 1} height={H - 1} fill={fill} stroke={stroke} strokeWidth="1" rx="2" />
       {schematic.map((s, i) => {
         const h = (s.flex / total) * H;
@@ -384,6 +383,95 @@ function LayoutStep() {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Carousel preset-uri modul — 4 preset-uri vizibile per slide
+// ═══════════════════════════════════════════════════════════════════════════
+const PRESETS_PER_SLIDE = 4;
+function PresetCarousel({ activeIdx, activePresetId, apply }: {
+  activeIdx: number;
+  activePresetId: string | undefined;
+  apply: (moduleIdx: number, presetId: string) => void;
+}) {
+  const presets = DRESSING_MODULE_PRESETS;
+  const totalSlides = Math.ceil(presets.length / PRESETS_PER_SLIDE);
+  const activeRealIdx = presets.findIndex((p) => p.id === activePresetId);
+  const activeSlide = activeRealIdx >= 0 ? Math.floor(activeRealIdx / PRESETS_PER_SLIDE) : 0;
+  const [slide, setSlide] = useState<number>(activeSlide);
+
+  // Sync slide cu preset-ul aplicat când user schimbă modulul.
+  useEffect(() => { setSlide(activeSlide); }, [activeSlide]);
+
+  const goPrev = () => setSlide((v) => (v - 1 + totalSlides) % totalSlides);
+  const goNext = () => setSlide((v) => (v + 1) % totalSlides);
+  const start = slide * PRESETS_PER_SLIDE;
+  const visible = presets.slice(start, start + PRESETS_PER_SLIDE);
+  // Padding dacă ultimul slide are mai puțin de 4 — pentru aliniere grid
+  const padded = [...visible, ...Array(PRESETS_PER_SLIDE - visible.length).fill(null)];
+
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Sparkles className="w-3 h-3 text-brand-accent" />
+        <span className="text-[10.5px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Funcție modul</span>
+        <span className="ml-auto text-[9.5px] text-brand-charcoal/45 tabular-nums font-semibold">
+          {slide + 1} / {totalSlides}
+        </span>
+      </div>
+
+      {/* Slide cu săgeți ─ 4 preset-uri per slide */}
+      <div className="flex items-stretch gap-1.5">
+        <button onClick={goPrev} className="shrink-0 w-7 rounded-lg border-2 border-brand-beige/40 bg-white hover:border-brand-accent/60 hover:bg-brand-accent/5 text-brand-charcoal/60 hover:text-brand-accent flex items-center justify-center transition-all active:scale-95"
+          title="Slide anterior">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        <div className="flex-1 min-w-0 grid grid-cols-4 gap-1.5">
+          {padded.map((p, i) =>
+            p ? (
+              <button key={p.id} onClick={() => apply(activeIdx, p.id)} title={`${p.name} — ${p.description}`}
+                className={`rounded-lg border-2 transition-all p-1.5 ${
+                  p.id === activePresetId
+                    ? 'border-brand-accent bg-brand-accent/5 shadow-sm'
+                    : 'border-brand-beige/40 bg-white hover:border-brand-accent/50 hover:shadow-sm'
+                }`}>
+                <ModulePresetThumb schematic={p.schematic} active={p.id === activePresetId} size="lg" />
+                <div className={`text-[9px] font-semibold leading-tight text-center mt-1 line-clamp-2 min-h-[22px] ${
+                  p.id === activePresetId ? 'text-brand-accent' : 'text-brand-charcoal/65'
+                }`}>{p.name}</div>
+              </button>
+            ) : (
+              <div key={`empty-${i}`} className="rounded-lg border-2 border-dashed border-brand-beige/20 bg-transparent" />
+            )
+          )}
+        </div>
+
+        <button onClick={goNext} className="shrink-0 w-7 rounded-lg border-2 border-brand-beige/40 bg-white hover:border-brand-accent/60 hover:bg-brand-accent/5 text-brand-charcoal/60 hover:text-brand-accent flex items-center justify-center transition-all active:scale-95"
+          title="Slide următor">
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Puncte indicator per slide */}
+      <div className="flex items-center justify-center gap-1 mt-2">
+        {Array.from({ length: totalSlides }).map((_, i) => {
+          const slideHasActive = activeRealIdx >= 0 && Math.floor(activeRealIdx / PRESETS_PER_SLIDE) === i;
+          return (
+            <button key={i} onClick={() => setSlide(i)} title={`Slide ${i + 1}`}
+              className={`rounded-full transition-all ${
+                i === slide
+                  ? 'bg-brand-accent w-5 h-1.5'
+                  : slideHasActive
+                    ? 'bg-brand-accent/50 w-1.5 h-1.5'
+                    : 'bg-brand-charcoal/20 hover:bg-brand-charcoal/40 w-1.5 h-1.5'
+              }`}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function InteriorStep() {
   const c = useDressingUnitStore((s) => s.config);
   const applyModulePreset = useDressingUnitStore((s) => s.applyModulePreset);
@@ -397,70 +485,91 @@ function InteriorStep() {
   const anyDoors = c.modules.some((m) => m.hasDoors);
   useEffect(() => { if (selectedIdx === null) setSelected(0); }, []);  // eslint-disable-line react-hooks/exhaustive-deps
   if (!activeModule) return null;
+
+  // Detect preset-ul activ pentru modulul curent (match prin signatura de tipuri de secțiuni)
+  const activeSig = (activeModule.sections || []).map((s) => s.type).join('|');
+  const activePresetId = DRESSING_MODULE_PRESETS.find((p) => p.schematic.map((x) => x.type).join('|') === activeSig)?.id;
+
   return (
-    <div className="animate-step-in space-y-4 pt-1">
+    <div className="animate-step-in space-y-3 pt-1">
       <StepHeading title={stepMeta.interior.title} subtitle={stepMeta.interior.subtitle} />
       <LockedDimsBanner />
-      {/* Toggle uși — compact, inline */}
-      <button onClick={toggleAllDoors}
-        className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 transition-all ${anyDoors ? 'border-brand-accent/60 bg-brand-accent/10 text-brand-accent' : 'border-brand-beige/40 bg-white text-brand-charcoal/70 hover:border-brand-accent/40'}`} title={anyDoors ? 'Ascunde ușile pentru a vedea interiorul' : 'Afișează ușile'}>
-        {anyDoors ? <DoorClosed className="w-4 h-4 shrink-0" /> : <DoorOpen className="w-4 h-4 shrink-0" />}
-        <span className="text-[12px] font-semibold leading-tight">{anyDoors ? 'Ascunde ușile (vezi interiorul)' : 'Afișează ușile'}</span>
-        <span className={`ml-auto text-[9px] uppercase tracking-widest font-bold shrink-0 px-1.5 py-0.5 rounded ${anyDoors ? 'bg-brand-accent text-white' : 'bg-brand-charcoal/10 text-brand-charcoal/55'}`}>{anyDoors ? 'ON' : 'OFF'}</span>
-      </button>
-      <section>
+
+      {/* ─── TAB MODULE (numeric, stil Tylko: "1 · 2 · 3 · Modul 4") ─── */}
+      <div>
         <div className="flex items-center gap-1.5 mb-2">
-          <Blocks className="w-3 h-3 text-brand-charcoal/40" />
-          <h3 className="text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Alege modulul</h3>
-          <span className="ml-auto text-[10px] text-brand-charcoal/40">Click și pe modul în 3D</span>
+          <span className="text-[10.5px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Alege modulul</span>
+          <span className="ml-auto text-[9.5px] text-brand-charcoal/40">Click și pe modul în 3D</span>
         </div>
-        <div className="flex gap-1 overflow-x-auto scrollbar-thin pb-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin pb-1">
           {c.modules.map((m, i) => {
             const active = i === activeIdx;
             return (
-              <button key={i} onClick={() => setSelected(i)}
-                className={`shrink-0 flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg border-2 transition-all ${active ? 'border-brand-accent bg-brand-accent text-white' : 'border-brand-beige/30 bg-white text-brand-charcoal/70 hover:border-brand-accent/40'}`}>
-                <span className="text-[11px] font-bold">Modul {i + 1}</span>
-                <span className={`text-[9px] tabular-nums ${active ? 'text-white/80' : 'text-brand-charcoal/45'}`}>{Math.round(m.width * 10)}mm</span>
+              <button
+                key={i}
+                onClick={() => setSelected(i)}
+                title={`Modul ${i + 1} · ${Math.round(m.width * 10)}mm`}
+                className={`shrink-0 rounded-xl border-2 transition-all tabular-nums flex items-center justify-center ${
+                  active
+                    ? 'bg-brand-accent border-brand-accent text-white px-4 py-2 text-[13px] font-bold shadow-md ring-2 ring-brand-accent/30 ring-offset-1'
+                    : 'bg-white border-brand-charcoal/15 text-brand-charcoal/80 hover:border-brand-accent hover:text-brand-dark hover:shadow-sm w-11 h-11 text-[14px] font-bold'
+                }`}
+              >
+                {active ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-[15px]">{i + 1}</span>
+                    <span className="opacity-70 text-[11px] font-semibold">{Math.round(m.width * 10)}mm</span>
+                  </span>
+                ) : (
+                  i + 1
+                )}
               </button>
             );
           })}
         </div>
-      </section>
-      <section>
-        <div className="flex items-center gap-1.5 mb-2">
-          <Sparkles className="w-3 h-3 text-brand-accent" />
-          <h3 className="text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Funcții — preconfigurări rapide</h3>
+      </div>
+
+      {/* ─── CAROUSEL PRESETURI (un preset vizibil + săgeți prev/next) ─── */}
+      <PresetCarousel activeIdx={activeIdx} activePresetId={activePresetId} apply={applyModulePreset} />
+
+      {/* ─── AFIȘARE (echivalent "Display" din Tylko) ─── */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span className="text-[10.5px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Afișare</span>
+          <span className="ml-auto text-[9.5px] text-brand-charcoal/40">Modul {activeIdx + 1}</span>
         </div>
-        <p className="text-[10.5px] text-brand-charcoal/50 leading-snug mb-2 px-0.5">Alege un tip gata-făcut pentru modulul {activeIdx + 1}. Apoi adaugă, șterge sau redimensionează elementele după gustul tău.</p>
-        <div className="grid grid-cols-2 gap-2">
-          {DRESSING_MODULE_PRESETS.map((p) => (
-            <button key={p.id} onClick={() => applyModulePreset(activeIdx, p.id)} title={p.description}
-              className="group text-left rounded-xl border-2 border-brand-beige/30 bg-white hover:border-brand-accent/50 hover:bg-brand-accent/5 p-2 transition-all">
-              <div className="flex items-start gap-2">
-                <div className="shrink-0 w-10">
-                  <ModulePresetThumb schematic={p.schematic} active={false} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11.5px] font-bold text-brand-dark group-hover:text-brand-accent leading-tight">{p.name}</div>
-                  <div className="text-[9.5px] text-brand-charcoal/50 mt-0.5 leading-snug line-clamp-2">{p.description}</div>
-                </div>
-              </div>
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-1.5">
+          <button onClick={() => { if (activeModule.hasDoors) toggleModuleDoors(activeIdx); }}
+            className={`flex flex-col items-center gap-1 py-2 rounded-lg border-2 transition-all ${
+              !activeModule.hasDoors ? 'border-brand-accent bg-brand-accent/5 text-brand-dark' : 'border-brand-beige/40 bg-white text-brand-charcoal/65 hover:border-brand-accent/40'
+            }`}>
+            <DoorOpen className="w-4 h-4" />
+            <span className="text-[10.5px] font-semibold leading-tight">Deschis</span>
+          </button>
+          <button onClick={() => { if (!activeModule.hasDoors) toggleModuleDoors(activeIdx); }}
+            className={`flex flex-col items-center gap-1 py-2 rounded-lg border-2 transition-all ${
+              activeModule.hasDoors ? 'border-brand-accent bg-brand-accent/5 text-brand-dark' : 'border-brand-beige/40 bg-white text-brand-charcoal/65 hover:border-brand-accent/40'
+            }`}>
+            <DoorClosed className="w-4 h-4" />
+            <span className="text-[10.5px] font-semibold leading-tight">Cu uși</span>
+          </button>
+          <button onClick={toggleAllDoors}
+            title={anyDoors ? 'Ascunde toate ușile pentru a vedea interiorul' : 'Afișează ușile pe toate modulele'}
+            className={`flex flex-col items-center gap-1 py-2 rounded-lg border-2 transition-all ${
+              anyDoors ? 'border-brand-beige/40 bg-white text-brand-charcoal/65 hover:border-brand-accent/40' : 'border-brand-accent bg-brand-accent/5 text-brand-dark'
+            }`}>
+            {anyDoors ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            <span className="text-[10.5px] font-semibold leading-tight text-center">{anyDoors ? 'Vezi interior' : 'Vezi uși'}</span>
+          </button>
         </div>
-      </section>
-      <section>
-        <div className="text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold mb-2">Personalizează modulul {activeIdx + 1}</div>
-        <ModuleStack moduleIndex={activeIdx} sections={activeModule.sections || []} availableCm={Math.round(moduleInteriorHeight(c, activeModule))} canCopy={c.modules.length > 1} />
-      </section>
-      <section className="space-y-2 pt-2 border-t border-brand-beige/20">
-        <h3 className="text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Opțiuni modul {activeIdx + 1}</h3>
-        <ToggleRow label={activeModule.hasDoors ? 'Modul cu uși' : 'Modul fără uși'} description="Afișează sau ascunde ușile pentru acest modul" active={activeModule.hasDoors} onToggle={() => toggleModuleDoors(activeIdx)} />
+      </div>
+
+      {/* ─── COMPARTIMENT SUPERIOR (rămâne — e dimensiune constructivă unică) ─── */}
+      <div className="pt-1 border-t border-brand-beige/20">
         <div className="rounded-xl bg-white border border-brand-beige/30 px-3 py-2.5">
           <BigSlider label="Înălțime compartiment superior" value={activeModule.topCompartmentHeight} min={DRESSING_UNIT_LIMITS.topCompartmentHeight.min} max={DRESSING_UNIT_LIMITS.topCompartmentHeight.max} step={DRESSING_UNIT_LIMITS.topCompartmentHeight.step} unit="mm" scale={10} tickStep={100} onChange={(v) => setModuleTopCompartmentHeight(activeIdx, v)} />
         </div>
-      </section>
+      </div>
     </div>
   );
 }
@@ -469,26 +578,39 @@ function ColorsStep() {
   const config = useDressingUnitStore((s) => s.config);
   const setBodyMaterial = useDressingUnitStore((s) => s.setBodyMaterial);
   const setFrontMaterial = useDressingUnitStore((s) => s.setFrontMaterial);
-  const [activeTab, setActiveTab] = useState<'body' | 'front'>('body');
+  const setSideMaterial = useDressingUnitStore((s) => s.setSideMaterial);
+  const [activeTab, setActiveTab] = useState<'body' | 'front' | 'side'>('body');
   const { loading: texturesLoading } = useTextures();
-  const activeMaterials = activeTab === 'body' ? getBodyMaterials() : getFrontMaterials();
-  const activeMaterialId = activeTab === 'body' ? config.bodyMaterialId : config.frontMaterialId;
-  const setMaterial = activeTab === 'body' ? setBodyMaterial : setFrontMaterial;
+  // Biblioteca (doar structura) folose\u0219te materialele de tip corp
+  const activeMaterials = activeTab === 'front' ? getFrontMaterials() : getBodyMaterials();
+  const activeMaterialId =
+    activeTab === 'body'  ? config.bodyMaterialId :
+    activeTab === 'front' ? config.frontMaterialId :
+                            config.sideMaterialId;
+  const setMaterial =
+    activeTab === 'body'  ? setBodyMaterial :
+    activeTab === 'front' ? setFrontMaterial :
+                            setSideMaterial;
   const selectedMat = getMaterialById(activeMaterialId);
   const grouped = materialTypes.map((mt) => ({ ...mt, items: activeMaterials.filter((m) => m.type === mt.id) })).filter((g) => g.items.length > 0);
+  const tabLabel =
+    activeTab === 'body'  ? 'Material corp' :
+    activeTab === 'front' ? 'Material front' :
+                            'Material bibliotec\u0103 (structur\u0103)';
   return (
     <div className="animate-step-in space-y-3 pt-1 flex flex-col h-full min-h-0">
       <StepHeading title={stepMeta.colors.title} subtitle={stepMeta.colors.subtitle} />
       <div className="flex rounded-xl bg-brand-cream/60 p-1 gap-1 shrink-0">
-        <button onClick={() => setActiveTab('body')} className={`flex-1 py-2.5 text-[13px] font-bold rounded-lg transition-all ${activeTab === 'body' ? 'bg-white shadow-md text-brand-dark ring-1 ring-brand-beige/30' : 'text-brand-charcoal/45 hover:text-brand-charcoal/70'}`}>Corp</button>
-        <button onClick={() => setActiveTab('front')} className={`flex-1 py-2.5 text-[13px] font-bold rounded-lg transition-all ${activeTab === 'front' ? 'bg-white shadow-md text-brand-dark ring-1 ring-brand-beige/30' : 'text-brand-charcoal/45 hover:text-brand-charcoal/70'}`}>Front</button>
+        <button onClick={() => setActiveTab('body')}  className={`flex-1 py-2.5 text-[12px] font-bold rounded-lg transition-all ${activeTab === 'body'  ? 'bg-white shadow-md text-brand-dark ring-1 ring-brand-beige/30' : 'text-brand-charcoal/45 hover:text-brand-charcoal/70'}`}>Corp</button>
+        <button onClick={() => setActiveTab('front')} className={`flex-1 py-2.5 text-[12px] font-bold rounded-lg transition-all ${activeTab === 'front' ? 'bg-white shadow-md text-brand-dark ring-1 ring-brand-beige/30' : 'text-brand-charcoal/45 hover:text-brand-charcoal/70'}`}>Front</button>
+        <button onClick={() => setActiveTab('side')}  className={`flex-1 py-2.5 text-[12px] font-bold rounded-lg transition-all ${activeTab === 'side'  ? 'bg-white shadow-md text-brand-dark ring-1 ring-brand-beige/30' : 'text-brand-charcoal/45 hover:text-brand-charcoal/70'}`}>Bibliotec\u0103</button>
       </div>
       {selectedMat && (
         <div className="shrink-0 flex items-center gap-3 px-3 py-2 rounded-xl bg-brand-accent/5 border border-brand-accent/20">
           <div className="w-10 h-10 rounded-lg shrink-0 ring-1 ring-brand-accent/20 shadow-sm" style={selectedMat.textureUrl ? { backgroundImage: `url(${selectedMat.textureUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { backgroundColor: selectedMat.color }} />
           <div className="min-w-0 flex-1">
             <div className="text-[13px] font-bold text-brand-dark truncate">{selectedMat.name}</div>
-            <div className="text-[10px] text-brand-charcoal/50">{activeTab === 'body' ? 'Material corp' : 'Material front'}</div>
+            <div className="text-[10px] text-brand-charcoal/50">{tabLabel}</div>
           </div>
           {selectedMat.priceMultiplier > 1.5 && (<span className="text-[9px] font-bold text-white bg-brand-accent px-2 py-0.5 rounded uppercase tracking-wider">Premium</span>)}
         </div>

@@ -262,6 +262,7 @@ export interface DressingUnitConfig {
   // Materials
   bodyMaterialId: string;
   frontMaterialId: string;
+  sideMaterialId: string;   // biblioteca laterală (doar structura)
 }
 
 // ===== BLOG / JOURNAL =====

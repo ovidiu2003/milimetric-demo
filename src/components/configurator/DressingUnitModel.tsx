@@ -121,13 +121,16 @@ function cloneTextureWithRotation(source: THREE.Texture | null, rotation: number
 export default function DressingUnitModel() {
   const groupRef = useRef<THREE.Group>(null);
   const config = useDressingUnitStore((s) => s.config);
+  const showDimensions = useDressingUnitStore((s) => s.showDimensions);
   useTextures();
 
   const bodyMaterial = getMaterialById(config.bodyMaterialId);
   const frontMaterial = getMaterialById(config.frontMaterialId);
+  const sideMaterial = getMaterialById(config.sideMaterialId);
 
   const bodyColor = bodyMaterial?.color || '#c9a96e';
   const frontColor = frontMaterial?.color || '#f5f5f5';
+  const sideColor = sideMaterial?.color || bodyColor;
 
   const bodyTexture = useMemo(() => {
     if (!bodyMaterial?.textureUrl) return null;
@@ -160,6 +163,23 @@ export default function DressingUnitModel() {
   const unifiedFrontTexture = frontTexture || bodyTexture;
   const verticalFrontTexture = useMemo(() => cloneTextureWithRotation(unifiedFrontTexture, 0), [unifiedFrontTexture]);
   const horizontalFrontTexture = useMemo(() => cloneTextureWithRotation(unifiedFrontTexture, Math.PI / 2), [unifiedFrontTexture]);
+
+  // Textura pentru biblioteca laterala (material separat)
+  const sideTexture = useMemo(() => {
+    if (!sideMaterial?.textureUrl) return null;
+    const t = new THREE.TextureLoader().load(sideMaterial.textureUrl);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = THREE.RepeatWrapping;
+    t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 4;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.repeat.set(1, 1);
+    return t;
+  }, [sideMaterial?.textureUrl]);
+  const horizontalSideTexture = useMemo(() => cloneTextureWithRotation(sideTexture, Math.PI / 2), [sideTexture]);
+  const verticalSideTexture   = useMemo(() => cloneTextureWithRotation(sideTexture, 0), [sideTexture]);
+  const unifiedSideColor = sideTexture ? '#ffffff' : sideColor;
 
   const unifiedBodyColor  = bodyTexture ? '#ffffff' : bodyColor;
   const unifiedFrontColor = frontTexture ? '#ffffff' : (bodyTexture ? '#ffffff' : frontColor);
@@ -221,6 +241,18 @@ export default function DressingUnitModel() {
     roughness: 0.62,
     metalness: 0.02,
     envMapIntensity: 0.06,
+  };
+  // Material biblioteca laterala (doar structura)
+  const sideMatProps = {
+    color: unifiedSideColor,
+    map: verticalSideTexture || undefined,
+    roughness: 0.62,
+    metalness: 0.02,
+    envMapIntensity: 0.06,
+  };
+  const sideMatPropsH = {
+    ...sideMatProps,
+    map: horizontalSideTexture || undefined,
   };
 
   return (
@@ -292,9 +324,9 @@ export default function DressingUnitModel() {
           bodyH={H}
           D={D}
           T={T}
-          bodyMatProps={bodyMatProps}
-          bodyMatPropsH={bodyMatPropsH}
-          frontMatProps={frontMatProps}
+          bodyMatProps={sideMatProps}
+          bodyMatPropsH={sideMatPropsH}
+          frontMatProps={sideMatProps}
         />
       )}
       {hasRightSide && (
@@ -309,9 +341,31 @@ export default function DressingUnitModel() {
           bodyH={H}
           D={D}
           T={T}
-          bodyMatProps={bodyMatProps}
-          bodyMatPropsH={bodyMatPropsH}
-          frontMatProps={frontMatProps}
+          bodyMatProps={sideMatProps}
+          bodyMatPropsH={sideMatPropsH}
+          frontMatProps={sideMatProps}
+        />
+      )}
+
+      {/* ═══════════ DIMENSIUNI — overlay la cerere ═══════════ */}
+      {showDimensions && (
+        <DimensionsOverlay
+          config={config}
+          S={S}
+          T={T}
+          H={H}
+          D={D}
+          PL={PL}
+          fullLeftX={fullLeftX}
+          modulesLeftX={modulesLeftX}
+          modulesRightX={modulesRightX}
+          modulesW={modulesW}
+          leftSideW={leftSideW}
+          rightSideW={rightSideW}
+          moduleStarts={moduleStarts}
+          moduleWidths={moduleWidths}
+          bodyY0={bodyY0}
+          bodyTotalH={bodyTotalH}
         />
       )}
     </group>
@@ -1207,6 +1261,251 @@ function SideShelvesGroup({
 
       {/* Rafturi */}
       {shelves}
+    </group>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// DimensionsOverlay — cotare tehnică stil schiță tâmplar
+// ═══════════════════════════════════════════════════════════════════════════
+const DIM_INK = '#0f172a';
+
+function DimLabel({
+  text,
+  position,
+  rotate = false,
+}: {
+  text: string;
+  position: [number, number, number];
+  rotate?: boolean;
+}) {
+  return (
+    <Html position={position} center sprite zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+      <div
+        style={{
+          color: DIM_INK,
+          fontSize: 9,
+          fontWeight: 600,
+          fontFamily: "ui-monospace, 'SF Mono', Consolas, monospace",
+          fontVariantNumeric: 'tabular-nums',
+          letterSpacing: '0.04em',
+          whiteSpace: 'nowrap',
+          padding: '0 3px',
+          background: 'rgba(255,255,255,0.92)',
+          borderRadius: 1,
+          textShadow: '0 0 2px #fff, 0 0 2px #fff',
+          transform: rotate ? 'rotate(-90deg)' : undefined,
+        }}
+      >
+        {text}
+      </div>
+    </Html>
+  );
+}
+
+function DimSeg({
+  from,
+  to,
+  width = 1,
+  dashed = false,
+}: {
+  from: [number, number, number];
+  to: [number, number, number];
+  width?: number;
+  dashed?: boolean;
+}) {
+  const line = useMemo(() => {
+    const geom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(...from),
+      new THREE.Vector3(...to),
+    ]);
+    const mat = dashed
+      ? new THREE.LineDashedMaterial({ color: DIM_INK, dashSize: 0.015, gapSize: 0.012, linewidth: width, depthTest: false })
+      : new THREE.LineBasicMaterial({ color: DIM_INK, linewidth: width, depthTest: false });
+    const l = new THREE.Line(geom, mat);
+    if (dashed) l.computeLineDistances();
+    l.renderOrder = 999;
+    return l;
+  }, [from, to, width, dashed]);
+  return <primitive object={line} />;
+}
+
+interface DimensionsOverlayProps {
+  config: ReturnType<typeof useDressingUnitStore.getState>['config'];
+  S: number;
+  T: number;
+  H: number;
+  D: number;
+  PL: number;
+  fullLeftX: number;
+  modulesLeftX: number;
+  modulesRightX: number;
+  modulesW: number;
+  leftSideW: number;
+  rightSideW: number;
+  moduleStarts: number[];
+  moduleWidths: number[];
+  bodyY0: number;
+  bodyTotalH: number;
+}
+
+function DimensionsOverlay(p: DimensionsOverlayProps) {
+  const {
+    config, S, T, D, fullLeftX, modulesLeftX, modulesRightX, modulesW,
+    leftSideW, rightSideW, moduleStarts, moduleWidths, bodyY0, bodyTotalH,
+  } = p;
+
+  const zFront = D / 2;
+  const zDim = zFront + 0.11;   // linia de cotă (lățimi) în față
+  const zExtGap = 0.02;         // spațiu gol înainte de extensie
+  const TICK = 0.014;           // mărimea serifului
+  const yGround = 0.003;        // puțin deasupra podelei pt. linia de lățimi
+
+  // Linia chain pentru LĂȚIMI — toți modulii + bibliotecile laterale, cu serife la fiecare granicță
+  // Colectăm pozițiile X ale granițelor (start de la fullLeft, apoi după bibl. stg., apoi după fiecare modul, apoi după bibl. dr.)
+  const boundaries: { x: number; label?: string }[] = [];
+  let accX = fullLeftX;
+  if (leftSideW > 0) {
+    boundaries.push({ x: accX, label: undefined });
+    accX += leftSideW;
+    boundaries.push({ x: accX });
+    // segment anterior primește label
+    boundaries[boundaries.length - 2].label = `${Math.round(config.sideShelves.columnWidth * 10)}`;
+  } else {
+    boundaries.push({ x: accX });
+  }
+  moduleWidths.forEach((mw) => {
+    accX += mw;
+    boundaries.push({ x: accX, label: undefined });
+  });
+  if (rightSideW > 0) {
+    accX += rightSideW;
+    boundaries.push({ x: accX });
+    boundaries[boundaries.length - 2].label = `${Math.round(config.sideShelves.columnWidth * 10)}`;
+  }
+  // Atribuie label lățime pentru fiecare segment de modul
+  // Indexul primului modul în boundaries: 1 dacă leftSide e 0, 2 dacă leftSide există? (după primul push avem 1 el., apoi +1 bibl → 2 el., apoi modul1 → 3 el.)
+  {
+    const startIdx = leftSideW > 0 ? 2 : 1;
+    moduleWidths.forEach((mw, i) => {
+      boundaries[startIdx + i - 1].label = `${Math.round(mw / S * 10)}`;
+    });
+  }
+
+  return (
+    <group renderOrder={999}>
+      {/* ═════ LINIA DE COTĂ — LĂȚIMI (jos, în față) ═════ */}
+      {/* Linia continuă */}
+      <DimSeg from={[fullLeftX, yGround, zDim]} to={[fullLeftX + modulesW + leftSideW + rightSideW, yGround, zDim]} />
+      {/* Extensii + serife la fiecare graniță */}
+      {boundaries.map((b, i) => (
+        <group key={`bx-${i}`}>
+          {/* Linia de extensie (dashed) din podea până sub linia de cotă */}
+          <DimSeg
+            from={[b.x, yGround, zFront + zExtGap]}
+            to={[b.x, yGround, zDim + TICK]}
+            dashed
+          />
+          {/* Serif la 45° pe linia de cotă */}
+          <DimSeg
+            from={[b.x - TICK, yGround, zDim + TICK]}
+            to={[b.x + TICK, yGround, zDim - TICK]}
+          />
+        </group>
+      ))}
+      {/* Numere între serife */}
+      {boundaries.map((b, i) => {
+        if (!b.label || i + 1 >= boundaries.length) return null;
+        const next = boundaries[i + 1];
+        const midX = (b.x + next.x) / 2;
+        return <DimLabel key={`wlbl-${i}`} text={b.label} position={[midX, yGround, zDim]} />;
+      })}
+
+      {/* ═════ COTARE ÎNĂLȚIMI — pe fața frontală a fiecărui modul ═════ */}
+      {config.modules.map((m, i) => {
+        const mx = moduleStarts[i];
+        const mw = moduleWidths[i];
+
+        const topCompH = m.hasTopCompartment ? m.topCompartmentHeight * S : 0;
+        const mainH = bodyTotalH - topCompH;
+        const innerBottom = bodyY0 + T;
+        const innerTop = bodyY0 + mainH - T;
+
+        // Chain vertical pe front, aproape de panoul drept al modulului (dar în interior, încă vizibil)
+        const xDim = mx + mw - 0.015;
+        const zF = zFront + 0.002;
+
+        // Seriile verticale
+        const sections = m.sections || [];
+        const totalSecCm = sections.reduce((a, s) => a + s.heightCm, 0) || 1;
+        const verticalBoundaries: number[] = [innerBottom];
+        let accY = innerBottom;
+        const segLabels: { yMid: number; label: string }[] = [];
+        sections.forEach((sec) => {
+          const segH = (sec.heightCm / totalSecCm) * (innerTop - innerBottom);
+          const y1 = accY + segH;
+          verticalBoundaries.push(y1);
+          segLabels.push({ yMid: (accY + y1) / 2, label: `${sec.heightCm * 10}` });
+          accY = y1;
+        });
+
+        return (
+          <group key={`dim-${i}`}>
+            {/* Linia de cotă verticală */}
+            <DimSeg from={[xDim, innerBottom, zF]} to={[xDim, innerTop, zF]} />
+            {/* Extensii + serife la fiecare graniță */}
+            {verticalBoundaries.map((y, j) => (
+              <group key={`vy-${i}-${j}`}>
+                {/* Serif 45° */}
+                <DimSeg
+                  from={[xDim - TICK, y - TICK, zF]}
+                  to={[xDim + TICK, y + TICK, zF]}
+                />
+              </group>
+            ))}
+            {/* Etichete între serife (înălțimea secțiunii) */}
+            {segLabels.map((s, j) => (
+              <DimLabel key={`vlbl-${i}-${j}`} text={s.label} position={[xDim - 0.025, s.yMid, zF]} />
+            ))}
+
+            {/* Compartiment superior (chain separat deasupra) */}
+            {m.hasTopCompartment && topCompH > 0 && (
+              <group>
+                <DimSeg from={[xDim, bodyY0 + mainH, zF]} to={[xDim, bodyY0 + mainH + topCompH, zF]} />
+                <DimSeg from={[xDim - TICK, bodyY0 + mainH - TICK, zF]} to={[xDim + TICK, bodyY0 + mainH + TICK, zF]} />
+                <DimSeg from={[xDim - TICK, bodyY0 + mainH + topCompH - TICK, zF]} to={[xDim + TICK, bodyY0 + mainH + topCompH + TICK, zF]} />
+                <DimLabel
+                  text={`${m.topCompartmentHeight * 10}`}
+                  position={[xDim - 0.025, bodyY0 + mainH + topCompH / 2, zF]}
+                />
+              </group>
+            )}
+          </group>
+        );
+      })}
+
+      {/* ═════ COTĂ PLINTĂ (sub modul, pe stânga jos) ═════ */}
+      {config.plinthHeight > 0 && (
+        <group>
+          <DimSeg
+            from={[modulesLeftX + 0.02, 0, zFront + 0.015]}
+            to={[modulesLeftX + 0.02, config.plinthHeight * S, zFront + 0.015]}
+          />
+          <DimSeg
+            from={[modulesLeftX + 0.02 - TICK, -TICK, zFront + 0.015]}
+            to={[modulesLeftX + 0.02 + TICK, TICK, zFront + 0.015]}
+          />
+          <DimSeg
+            from={[modulesLeftX + 0.02 - TICK, config.plinthHeight * S - TICK, zFront + 0.015]}
+            to={[modulesLeftX + 0.02 + TICK, config.plinthHeight * S + TICK, zFront + 0.015]}
+          />
+          <DimLabel
+            text={`${config.plinthHeight * 10}`}
+            position={[modulesLeftX + 0.04, (config.plinthHeight * S) / 2, zFront + 0.015]}
+          />
+        </group>
+      )}
     </group>
   );
 }
