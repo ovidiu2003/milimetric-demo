@@ -3,8 +3,8 @@ import { DressingUnitConfig, DressingInteriorType, DressingModuleConfig, Dressin
 import { getMaterialById } from '@/data/materials';
 
 // ===== STEP TYPES =====
-export type DressingUnitStep = 'parameters' | 'materials' | 'summary';
-const STEPS: DressingUnitStep[] = ['parameters', 'materials', 'summary'];
+export type DressingUnitStep = 'size' | 'layout' | 'interior' | 'colors' | 'summary';
+const STEPS: DressingUnitStep[] = ['size', 'layout', 'interior', 'colors', 'summary'];
 
 // ===== CONSTRAINTS =====
 export const PANEL_T_CM = 1.8;  // grosime panou (corespunde T=1.8cm real)
@@ -27,18 +27,26 @@ export const DRESSING_UNIT_LIMITS = {
 
 /** Inaltime minima realista per tip de sectiune (cm) */
 export const SECTION_MIN_HEIGHT: Record<DressingSectionType, number> = {
-  'drawers':     24,  // min 1 sertar util (12cm x 2 spatii)
-  'shelves':     20,  // min un compartiment deschis
-  'hanging-rod': 60,  // min pt haine scurte (bluze, camasi)
-  'empty':       20,
+  'drawers':           24,   // min 1 sertar util (12cm x 2 spatii)
+  'shelves':           20,   // min un compartiment deschis
+  'hanging-rod':       60,   // min pt haine scurte (bluze, camasi)
+  'shoe-rack':         35,   // min 2 rafturi inclinate
+  'pull-out-trouser':  40,   // min 3 bare pantaloni
+  'pull-out-basket':   25,   // min 1 cos
+  'mirror':            120,  // oglinda utila incepe la 120cm
+  'empty':             20,
 };
 
 /** Inaltime implicita "nou adaugata" per tip (cm) */
 export const SECTION_DEFAULT_HEIGHT: Record<DressingSectionType, number> = {
-  'drawers':     45,  // 2 sertare standard
-  'shelves':     60,  // 2-3 compartimente
-  'hanging-rod': 100, // haine medii
-  'empty':       40,
+  'drawers':           45,   // 2 sertare standard
+  'shelves':           60,   // 2-3 compartimente
+  'hanging-rod':       100,  // haine medii
+  'shoe-rack':         70,   // 3 rafturi pantofi
+  'pull-out-trouser':  60,   // 4 bare pantaloni
+  'pull-out-basket':   50,   // 2 cosuri
+  'mirror':            150,  // oglinda full-length
+  'empty':             40,
 };
 
 export const DRESSING_SIDE_POSITION_OPTIONS: { id: DressingSidePosition; name: string }[] = [
@@ -61,6 +69,140 @@ export const DRESSING_INTERIOR_OPTIONS: { id: DressingInteriorType; name: string
   { id: 'bara-raft',        name: 'Bară haine + raft',             description: 'Bară de haine sus, un raft jos',                 allowsDoors: true  },
   { id: 'rafturi',          name: 'Rafturi multiple',              description: 'Patru rafturi orizontale',                       allowsDoors: true  },
   { id: 'mixt',             name: 'Mixt (bară + sertare)',         description: 'Bară haine sus, două sertare jos',               allowsDoors: true  },
+];
+
+// ===== MODULE FUNCTION PRESETS (Tylko-style per-module) =====
+// Fiecare preset returneaza sectiunile potrivite pt inaltimea interioara disponibila.
+// Pattern: generat dinamic pt a se potrivi exact pe inaltimea reala a modulului.
+export interface DressingModulePreset {
+  id: string;
+  name: string;
+  description: string;
+  /** Structură schematică pentru thumbnail: [{type, flex}]. Flex = proporția din înălțime. */
+  schematic: { type: DressingSectionType; flex: number; shelves?: number; drawers?: number }[];
+  build: (interiorHeightCm: number) => DressingModuleSection[];
+}
+
+export const DRESSING_MODULE_PRESETS: DressingModulePreset[] = [
+  // 1. LONG HANG — single long rail (Tylko: "Long Hang")
+  {
+    id: 'long-hang',
+    name: 'Bară lungă',
+    description: 'O bară pe toată înălțimea pentru paltoane, rochii, haine lungi.',
+    schematic: [{ type: 'hanging-rod', flex: 1 }],
+    build: (H) => [{ id: newSectionId(), type: 'hanging-rod', heightCm: Math.max(60, H) }],
+  },
+  // 2. SHORT HANG + SHELVES (Tylko: "Short Hang + Shelves")
+  {
+    id: 'short-hang-shelves',
+    name: 'Bară scurtă + rafturi',
+    description: 'Bară sus pentru cămăși/bluze, rafturi dedesubt pentru textile pliate.',
+    schematic: [
+      { type: 'hanging-rod', flex: 0.5 },
+      { type: 'shelves', flex: 0.5, shelves: 3 },
+    ],
+    build: (H) => {
+      const hang = Math.max(90, Math.round(H * 0.5));
+      const shelves = Math.max(40, H - hang);
+      return [
+        { id: newSectionId(), type: 'shelves', heightCm: shelves, shelfCount: 3 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
+      ];
+    },
+  },
+  // 3. HANG + DRAWERS (Tylko: "Hang + Drawers")
+  {
+    id: 'hang-drawers',
+    name: 'Bară + sertare',
+    description: 'Bară de haine sus, set de sertare jos pentru lenjerie și accesorii.',
+    schematic: [
+      { type: 'hanging-rod', flex: 0.68 },
+      { type: 'drawers', flex: 0.32, drawers: 3 },
+    ],
+    build: (H) => {
+      const drawers = Math.min(70, Math.max(50, Math.round(H * 0.32)));
+      const hang = Math.max(60, H - drawers);
+      return [
+        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 3 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
+      ];
+    },
+  },
+  // 4. DOUBLE HANG — 2 rails stacked (Tylko: "Double Hang")
+  {
+    id: 'double-hang',
+    name: 'Dublă bară',
+    description: 'Două bare suprapuse — dublează capacitatea pentru cămăși, bluze, pantaloni.',
+    schematic: [
+      { type: 'hanging-rod', flex: 0.5 },
+      { type: 'hanging-rod', flex: 0.5 },
+    ],
+    build: (H) => {
+      const half = Math.max(60, Math.round(H / 2));
+      return [
+        { id: newSectionId(), type: 'hanging-rod', heightCm: half },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: Math.max(60, H - half) },
+      ];
+    },
+  },
+  // 5. SHELVES ONLY (Tylko: "Shelves")
+  {
+    id: 'shelves-only',
+    name: 'Doar rafturi',
+    description: 'Cinci rafturi distanțate egal — pulovere, blugi, textile pliate.',
+    schematic: [{ type: 'shelves', flex: 1, shelves: 5 }],
+    build: (H) => [{ id: newSectionId(), type: 'shelves', heightCm: Math.max(60, H), shelfCount: 5 }],
+  },
+  // 6. DRAWERS ONLY (Tylko: "Drawers")
+  {
+    id: 'drawers-only',
+    name: 'Doar sertare',
+    description: 'Coloană completă de sertare — ideal pentru lenjerie, accesorii, tricouri.',
+    schematic: [{ type: 'drawers', flex: 1, drawers: 5 }],
+    build: (H) => [{ id: newSectionId(), type: 'drawers', heightCm: Math.max(80, H), drawerCount: 5 }],
+  },
+  // 7. SHOES (Tylko: "Shoes") — shoe rack column
+  {
+    id: 'shoes',
+    name: 'Pantofi',
+    description: 'Coloană de rafturi înclinate pentru pantofi + raft jos pentru cutii.',
+    schematic: [
+      { type: 'shoe-rack', flex: 0.75 },
+      { type: 'shelves', flex: 0.25, shelves: 0 },
+    ],
+    build: (H) => {
+      const bottom = 40;
+      const shoes = Math.max(70, H - bottom);
+      return [
+        { id: newSectionId(), type: 'shelves', heightCm: bottom, shelfCount: 0 },
+        { id: newSectionId(), type: 'shoe-rack', heightCm: shoes, shoeCount: Math.max(3, Math.round(shoes / 25)) },
+      ];
+    },
+  },
+  // 8. COMBO / MIX (Tylko: "Combo") — shelves + rod + drawers cu accesorii
+  {
+    id: 'combo',
+    name: 'Combo complet',
+    description: 'Rafturi sus, bară la mijloc, sertare jos + suport pantaloni — organizare totală.',
+    schematic: [
+      { type: 'shelves', flex: 0.22, shelves: 2 },
+      { type: 'hanging-rod', flex: 0.4 },
+      { type: 'pull-out-trouser', flex: 0.18 },
+      { type: 'drawers', flex: 0.2, drawers: 2 },
+    ],
+    build: (H) => {
+      const drawers = 50;
+      const trousers = 55;
+      const shelves = Math.max(30, Math.round((H - drawers - trousers) * 0.3));
+      const hang = Math.max(60, H - drawers - trousers - shelves);
+      return [
+        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 2 },
+        { id: newSectionId(), type: 'pull-out-trouser', heightCm: trousers, trouserRodCount: 4 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
+        { id: newSectionId(), type: 'shelves', heightCm: shelves, shelfCount: 2 },
+      ];
+    },
+  },
 ];
 
 // ===== DEFAULTS =====
@@ -417,6 +559,24 @@ export function calculateDressingUnitPrice(config: DressingUnitConfig) {
             interiorCost += n * 80 * bodyMul; // front sertar + glisiere
             break;
           }
+          case 'shoe-rack': {
+            const n = Math.max(2, sec.shoeCount ?? 3);
+            interiorCost += n * m.width * config.depth * 0.012 * bodyMul; // rafturi inclinate + stopper
+            break;
+          }
+          case 'pull-out-trouser': {
+            const n = Math.max(2, sec.trouserRodCount ?? 4);
+            interiorCost += 120 + n * 12; // sine telescopice + bare metalice
+            break;
+          }
+          case 'pull-out-basket': {
+            const n = Math.max(1, sec.basketCount ?? 2);
+            interiorCost += n * 95; // cos sarma + glisiere telescopice
+            break;
+          }
+          case 'mirror':
+            interiorCost += m.width * sec.heightCm * 0.018 * bodyMul; // panou oglinda argintata
+            break;
           case 'empty':
           default:
             break;
@@ -509,6 +669,14 @@ interface DressingUnitState {
   steps: DressingUnitStep[];
   price: ReturnType<typeof calculateDressingUnitPrice>;
 
+  /** UI-only: secțiunea activă per modul (pentru editor Tylko-like). */
+  activeSectionByModule: Record<number, string | null>;
+  setActiveSection: (moduleIdx: number, sectionId: string | null) => void;
+
+  /** UI-only: modulul selectat (click în 3D sau expandat în panou). */
+  selectedModuleIdx: number | null;
+  setSelectedModule: (idx: number | null) => void;
+
   setModuleCount: (v: number) => void;
   setTotalModulesWidth: (v: number) => void;
   setTotalHeight: (v: number) => void;
@@ -522,9 +690,14 @@ interface DressingUnitState {
   setModuleTopCompartmentHeight: (index: number, v: number) => void;
 
   addModuleSection: (index: number, type: DressingSectionType) => void;
+  insertModuleSection: (index: number, position: number, type: DressingSectionType) => void;
   removeModuleSection: (index: number, sectionId: string) => void;
   updateModuleSection: (index: number, sectionId: string, patch: Partial<DressingModuleSection>) => void;
   moveModuleSection: (index: number, sectionId: string, direction: 'up' | 'down') => void;
+  /** Redimensionează doar două secțiuni adiacente (drag între ele). `bottomId` primește `newBottomHeight` dacă încape. */
+  resizeAdjacentSections: (index: number, topId: string, bottomId: string, newBottomHeight: number) => void;
+  /** Copiază secțiunile modulului sursă în toate celelalte module (normalizate la înălțimea lor interioară). */
+  copyModuleSectionsToAll: (sourceIndex: number) => void;
 
   setSideShelvesPosition: (p: DressingSidePosition) => void;
   setSideShelvesColumns: (n: number) => void;
@@ -533,6 +706,8 @@ interface DressingUnitState {
   setSideShelvesLayout: (layout: DressingSideLayout) => void;
 
   applyPreset: (presetId: string) => void;
+  /** Aplică un preset de funcție pe un singur modul (Tylko-style). Înlocuiește sectiunile. */
+  applyModulePreset: (index: number, presetId: string) => void;
   toggleAllDoors: () => void;
 
   setBodyMaterial: (id: string) => void;
@@ -564,14 +739,52 @@ function updateModule(
 
 export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
   config: { ...defaultConfig, totalWidth: recalcTotalWidth(defaultConfig) },
-  currentStep: 'parameters',
+  currentStep: 'size',
   steps: STEPS,
   price: calculateDressingUnitPrice(defaultConfig),
+
+  activeSectionByModule: {},
+  setActiveSection: (moduleIdx, sectionId) => {
+    set((s) => ({
+      activeSectionByModule: { ...s.activeSectionByModule, [moduleIdx]: sectionId },
+    }));
+  },
+
+  selectedModuleIdx: null,
+  setSelectedModule: (idx) => set({ selectedModuleIdx: idx }),
 
   setModuleCount: (v) => {
     const prev = get().config;
     const val = clamp(Math.round(v), DRESSING_UNIT_LIMITS.moduleCount.min, DRESSING_UNIT_LIMITS.moduleCount.max);
-    commit(set, { ...prev, moduleCount: val, modules: resizeModules(prev.modules, val) });
+    if (val === prev.modules.length) return;
+    // Păstrăm totalWidth: redistribuim egal lățimea modulelor pe noul număr.
+    const resized = resizeModules(prev.modules, val);
+    const sideW = sideShelvesWidth(prev);
+    const targetModulesW = Math.max(
+      val * DRESSING_UNIT_LIMITS.moduleWidth.min,
+      Math.min(val * DRESSING_UNIT_LIMITS.moduleWidth.max, Math.round((prev.totalWidth - sideW) * 10) / 10),
+    );
+    const each = clamp(
+      Math.round((targetModulesW / val) * 10) / 10,
+      DRESSING_UNIT_LIMITS.moduleWidth.min,
+      DRESSING_UNIT_LIMITS.moduleWidth.max,
+    );
+    const redistributed = resized.map((m) => ({ ...m, width: each }));
+    // Drift correction pe ultimul modul
+    const actual = redistributed.reduce((a, m) => a + m.width, 0);
+    const drift = Math.round((targetModulesW - actual) * 10) / 10;
+    if (Math.abs(drift) >= 0.1 && redistributed.length > 0) {
+      const last = redistributed[redistributed.length - 1];
+      redistributed[redistributed.length - 1] = {
+        ...last,
+        width: clamp(
+          Math.round((last.width + drift) * 10) / 10,
+          DRESSING_UNIT_LIMITS.moduleWidth.min,
+          DRESSING_UNIT_LIMITS.moduleWidth.max,
+        ),
+      };
+    }
+    commit(set, { ...prev, moduleCount: val, modules: redistributed });
   },
 
   setTotalModulesWidth: (v) => {
@@ -678,10 +891,14 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
 
     // Creez sectiunea noua
     const defaults: Record<DressingSectionType, Partial<DressingModuleSection>> = {
-      'drawers':     { drawerCount: 2 },
-      'shelves':     { shelfCount: 2 },
-      'hanging-rod': {},
-      'empty':       {},
+      'drawers':          { drawerCount: 2 },
+      'shelves':          { shelfCount: 2 },
+      'hanging-rod':      {},
+      'shoe-rack':        { shoeCount: 3 },
+      'pull-out-trouser': { trouserRodCount: 4 },
+      'pull-out-basket':  { basketCount: 2 },
+      'mirror':           {},
+      'empty':            {},
     };
     const newSec: DressingModuleSection = {
       id: newSectionId(),
@@ -694,6 +911,81 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     // Insereaza noua sectiune sus (la capatul array-ului = sus vizual)
     const sections = [...reduced, newSec];
     updateModule(set, get, index, (mm) => ({ ...mm, sections }));
+  },
+
+  insertModuleSection: (index, position, type) => {
+    const prev = get().config;
+    const m = prev.modules[index];
+    if (!m) return;
+    const current = m.sections || [];
+    const desired = SECTION_DEFAULT_HEIGHT[type];
+    const minNew = SECTION_MIN_HEIGHT[type];
+    const currentMinSum = current.reduce((s, sec) => s + sectionMinH(sec), 0);
+    const currentSum = sumSectionsH(current);
+    const available = Math.max(0, currentSum - currentMinSum);
+    if (available < minNew) return;
+    const newHeight = Math.min(desired, available);
+    const defaults: Record<DressingSectionType, Partial<DressingModuleSection>> = {
+      'drawers':          { drawerCount: 2 },
+      'shelves':          { shelfCount: 2 },
+      'hanging-rod':      {},
+      'shoe-rack':        { shoeCount: 3 },
+      'pull-out-trouser': { trouserRodCount: 4 },
+      'pull-out-basket':  { basketCount: 2 },
+      'mirror':           {},
+      'empty':            {},
+    };
+    const newSec: DressingModuleSection = {
+      id: newSectionId(),
+      type,
+      heightCm: newHeight,
+      ...defaults[type],
+    };
+    const reduced = distributeSectionDelta(current, -1, -newHeight);
+    const clampedPos = Math.max(0, Math.min(position, reduced.length));
+    const sections = [...reduced.slice(0, clampedPos), newSec, ...reduced.slice(clampedPos)];
+    updateModule(set, get, index, (mm) => ({ ...mm, sections }));
+    set((s: DressingUnitState) => ({
+      activeSectionByModule: { ...s.activeSectionByModule, [index]: newSec.id },
+    }));
+  },
+
+  resizeAdjacentSections: (index, topId, bottomId, newBottomHeight) => {
+    const prev = get().config;
+    const m = prev.modules[index];
+    if (!m || !m.sections) return;
+    const topIdx = m.sections.findIndex((s) => s.id === topId);
+    const botIdx = m.sections.findIndex((s) => s.id === bottomId);
+    if (topIdx < 0 || botIdx < 0) return;
+    const top = m.sections[topIdx];
+    const bot = m.sections[botIdx];
+    const minBot = sectionMinH(bot);
+    const minTop = sectionMinH(top);
+    const pairSum = top.heightCm + bot.heightCm;
+    const maxBot = pairSum - minTop;
+    const newBot = clamp(Math.round(newBottomHeight), minBot, Math.max(minBot, maxBot));
+    const newTop = pairSum - newBot;
+    if (newBot === bot.heightCm && newTop === top.heightCm) return;
+    const sections = m.sections.map((s, i) => {
+      if (i === topIdx) return { ...s, heightCm: newTop };
+      if (i === botIdx) return { ...s, heightCm: newBot };
+      return s;
+    });
+    updateModule(set, get, index, (mm) => ({ ...mm, sections }));
+  },
+
+  copyModuleSectionsToAll: (sourceIndex) => {
+    const prev = get().config;
+    const src = prev.modules[sourceIndex];
+    if (!src || !src.sections || src.sections.length === 0) return;
+    const modules = prev.modules.map((m, i) => {
+      if (i === sourceIndex) return m;
+      // Copie cu id-uri noi — normalizarea la înălțimea interioară a modulului
+      // destinație se aplică automat în commit()
+      const cloned = src.sections!.map((s) => ({ ...s, id: newSectionId() }));
+      return { ...m, sections: cloned };
+    });
+    commit(set, { ...prev, modules });
   },
 
   removeModuleSection: (index, sectionId) => {
@@ -827,19 +1119,74 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     const preset = DRESSING_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
     const prev = get().config;
-    const bodyH = preset.totalHeight - preset.plinthHeight;
+    // PĂSTRĂM dimensiunile exterioare din pasul 1:
+    //   - totalHeight, depth, plinthHeight, bodyMaterial, frontMaterial (neatinse)
+    //   - totalWidth (= module + bibliotecă laterală) — EXACT aceeași valoare după preset
+    // Importăm din preset doar LAYOUT-ul: număr module, proporții relative module, side shelves.
+    const prevTotalWidth = prev.totalWidth;
+    // Calculăm câtă lățime ocupă side shelves din PRESET (păstrăm columnWidth preset)
+    const presetSideWidth = (() => {
+      const s = preset.sideShelves;
+      if (s.position === 'none') return 0;
+      const sides = s.position === 'both' ? 2 : 1;
+      return sides * s.columnWidth;
+    })();
+    // Lățime disponibilă pentru module după ce scădem biblioteca laterală
+    const targetModulesW = Math.max(
+      preset.modules.length * DRESSING_UNIT_LIMITS.moduleWidth.min,
+      Math.min(
+        preset.modules.length * DRESSING_UNIT_LIMITS.moduleWidth.max,
+        Math.round((prevTotalWidth - presetSideWidth) * 10) / 10,
+      ),
+    );
+    const presetModulesW = preset.modules.reduce((a, m) => a + m.width, 0) || 1;
+    const scale = targetModulesW / presetModulesW;
+    const bodyH = prev.totalHeight - prev.plinthHeight;
+    const scaledModules = preset.modules.map((m) => {
+      const scaledW = clamp(
+        Math.round(m.width * scale * 10) / 10,
+        DRESSING_UNIT_LIMITS.moduleWidth.min,
+        DRESSING_UNIT_LIMITS.moduleWidth.max,
+      );
+      return ensureSections(
+        { ...m, width: scaledW },
+        Math.max(80, bodyH - (m.hasTopCompartment ? m.topCompartmentHeight : 0)),
+      );
+    });
+    // Corecție drift pentru a ajunge exact la targetModulesW
+    const actualW = scaledModules.reduce((a, m) => a + m.width, 0);
+    const drift = Math.round((targetModulesW - actualW) * 10) / 10;
+    if (Math.abs(drift) >= 0.1 && scaledModules.length > 0) {
+      const last = scaledModules[scaledModules.length - 1];
+      scaledModules[scaledModules.length - 1] = {
+        ...last,
+        width: clamp(
+          Math.round((last.width + drift) * 10) / 10,
+          DRESSING_UNIT_LIMITS.moduleWidth.min,
+          DRESSING_UNIT_LIMITS.moduleWidth.max,
+        ),
+      };
+    }
     commit(set, {
       ...prev,
       moduleCount: preset.modules.length,
-      modules: preset.modules.map((m) => ensureSections(
-        { ...m },
-        Math.max(80, bodyH - (m.hasTopCompartment ? m.topCompartmentHeight : 0)),
-      )),
+      modules: scaledModules,
       sideShelves: { ...preset.sideShelves },
-      totalHeight: preset.totalHeight,
-      depth: preset.depth,
-      plinthHeight: preset.plinthHeight,
+      // NU schimbăm: totalHeight, depth, plinthHeight, bodyMaterialId, frontMaterialId
     });
+  },
+
+  applyModulePreset: (index, presetId) => {
+    const preset = DRESSING_MODULE_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    const prev = get().config;
+    const m = prev.modules[index];
+    if (!m) return;
+    const targetH = moduleInteriorHeight(prev, m);
+    const rawSections = preset.build(targetH);
+    const normalized = normalizeSections(rawSections, targetH);
+    const nextModules = prev.modules.map((mm, i) => (i === index ? { ...mm, sections: normalized } : mm));
+    commit(set, { ...prev, modules: nextModules });
   },
 
   toggleAllDoors: () => {
@@ -879,8 +1226,10 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     };
     set({
       config: { ...fresh, totalWidth: recalcTotalWidth(fresh) },
-      currentStep: 'parameters',
+      currentStep: 'size',
       price: calculateDressingUnitPrice(fresh),
+      activeSectionByModule: {},
+      selectedModuleIdx: null,
     });
   },
 }));

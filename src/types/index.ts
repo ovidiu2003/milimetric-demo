@@ -203,7 +203,15 @@ export interface LivingUnitConfig {
 
 export type DressingInteriorType = 'bara-raft' | 'rafturi' | 'mixt' | 'rafturi-deschise';
 
-export type DressingSectionType = 'drawers' | 'shelves' | 'hanging-rod' | 'empty';
+export type DressingSectionType =
+  | 'drawers'
+  | 'shelves'
+  | 'hanging-rod'
+  | 'shoe-rack'         // Tylko: Shoe rack — rafturi înclinate pentru pantofi
+  | 'pull-out-trouser'  // Tylko: Trouser rail — bare extensibile pentru pantaloni
+  | 'pull-out-basket'   // Tylko: Wire basket — coș extensibil de sârmă
+  | 'mirror'            // Tylko: Mirror — oglindă fixă/extensibilă
+  | 'empty';
 
 export interface DressingModuleSection {
   id: string;                         // unique stable id (timestamp/random)
@@ -211,6 +219,9 @@ export interface DressingModuleSection {
   heightCm: number;                   // cm — allocated vertical space
   drawerCount?: number;               // only for 'drawers' (1..5)
   shelfCount?: number;                // only for 'shelves' (0..6, interior shelves)
+  shoeCount?: number;                 // only for 'shoe-rack' (1..4 raft inclinat)
+  trouserRodCount?: number;           // only for 'pull-out-trouser' (2..5 bare)
+  basketCount?: number;               // only for 'pull-out-basket' (1..3 cosuri)
 }
 
 export interface DressingModuleConfig {

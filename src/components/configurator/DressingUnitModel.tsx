@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Edges } from '@react-three/drei';
+import { Edges, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useDressingUnitStore } from '@/store/dressingUnitStore';
 import { DressingModuleConfig } from '@/types';
@@ -356,6 +356,12 @@ function ModuleGroup(props: ModuleProps) {
     HANDLE_COLOR,
   } = props;
 
+  const selectedIdx = useDressingUnitStore((s) => s.selectedModuleIdx);
+  const setSelected = useDressingUnitStore((s) => s.setSelectedModule);
+  const [hovered, setHovered] = useState(false);
+  const isSelected = selectedIdx === props.index;
+  const isActive = isSelected || hovered;
+
   const innerLeftX = moduleLeftX + T;
   const innerRightX = moduleRightX - T;
   const innerW = innerRightX - innerLeftX;
@@ -374,8 +380,75 @@ function ModuleGroup(props: ModuleProps) {
   const fullTopY = topCompBottomY + topCompH; // capatul absolut al modulului
   const topCompMidY = topCompBottomY + topCompH / 2;
 
+  // Bounding box total al modulului (pentru hit-test si overlay selection)
+  const moduleBoxH = bodyH + topCompH;
+  const moduleBoxMidY = bodyY0 + moduleBoxH / 2;
+
   return (
-    <group>
+    <group
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation();
+        setHovered(false);
+        document.body.style.cursor = 'auto';
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        setSelected(isSelected ? null : props.index);
+      }}
+    >
+      {/* Hit-test box invizibil — acopera tot modulul pentru click/hover fiabil */}
+      <mesh position={[moduleCenterX, moduleBoxMidY, 0]} visible={false}>
+        <boxGeometry args={[MW, moduleBoxH, D * 1.02]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
+      {/* Overlay de selectie / hover — outline luminos */}
+      {isActive && (
+        <mesh position={[moduleCenterX, moduleBoxMidY, 0]}>
+          <boxGeometry args={[MW + 0.008, moduleBoxH + 0.008, D + 0.008]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          <Edges
+            threshold={1}
+            color={isSelected ? '#d4a664' : '#e8c88a'}
+            lineWidth={isSelected ? 2.2 : 1.4}
+          />
+        </mesh>
+      )}
+
+      {/* Badge cu numarul modulului (vizibil pe hover sau selectat) */}
+      {isActive && (
+        <Html
+          position={[moduleCenterX, fullTopY + 0.08, D / 2]}
+          center
+          sprite
+          zIndexRange={[100, 0]}
+          pointerEvents="none"
+        >
+          <div
+            style={{
+              background: isSelected ? '#b48c50' : 'rgba(180,140,80,0.85)',
+              color: '#fff',
+              borderRadius: 999,
+              padding: '3px 10px',
+              fontSize: 10,
+              fontWeight: 700,
+              fontFamily: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              boxShadow: '0 2px 10px rgba(180,140,80,0.35)',
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+            }}
+          >
+            {isSelected ? '✓ ' : ''}Modul {props.index + 1}
+          </div>
+        </Html>
+      )}
       {/* ═══ CORPUL PRINCIPAL ═══ */}
       {/* Laterala stanga — doar corp principal */}
       {includeLeftPanel && (
@@ -629,6 +702,95 @@ function ModuleInterior({
             </HoverDrawer>
           );
         }
+        break;
+      }
+      case 'shoe-rack': {
+        // Rafturi inclinate pentru pantofi — 2-4 bucati, la ~15deg
+        const n = Math.max(2, Math.min(6, sec.shoeCount ?? 3));
+        const tilt = -15 * Math.PI / 180;
+        const slotH = h / n;
+        for (let k = 0; k < n; k++) {
+          const y = y0 + (k + 0.5) * slotH;
+          nodes.push(
+            <mesh key={`${sec.id}-shoe-${k}`} position={[innerCenterX, y, 0]} rotation={[tilt, 0, 0]} castShadow receiveShadow>
+              <boxGeometry args={[innerW, T * 0.7, D * 0.7]} />
+              <meshStandardMaterial {...bodyMatPropsH} />
+              <Edges threshold={15} color="#3a3228" lineWidth={0.5} />
+            </mesh>
+          );
+          // bordura inferioara (stopper pantofi)
+          nodes.push(
+            <mesh key={`${sec.id}-shoe-lip-${k}`} position={[innerCenterX, y - slotH * 0.35, D * 0.22]} castShadow>
+              <boxGeometry args={[innerW - 0.01, 0.015, 0.008]} />
+              <meshStandardMaterial color="#9ca0a6" metalness={0.5} roughness={0.4} />
+            </mesh>
+          );
+        }
+        break;
+      }
+      case 'pull-out-trouser': {
+        // Rama extensibila + bare orizontale pentru pantaloni
+        const n = Math.max(2, Math.min(6, sec.trouserRodCount ?? 4));
+        const pad = 0.03;
+        // 2 sine laterale (rama)
+        nodes.push(
+          <mesh key={`${sec.id}-tr-rail-L`} position={[innerCenterX - innerW / 2 + 0.012, (y0 + y1) / 2, 0]} castShadow>
+            <boxGeometry args={[0.012, h - pad, D * 0.6]} />
+            <meshStandardMaterial color="#9ca0a6" metalness={0.7} roughness={0.3} />
+          </mesh>
+        );
+        nodes.push(
+          <mesh key={`${sec.id}-tr-rail-R`} position={[innerCenterX + innerW / 2 - 0.012, (y0 + y1) / 2, 0]} castShadow>
+            <boxGeometry args={[0.012, h - pad, D * 0.6]} />
+            <meshStandardMaterial color="#9ca0a6" metalness={0.7} roughness={0.3} />
+          </mesh>
+        );
+        // barele de agatare pantaloni
+        for (let k = 0; k < n; k++) {
+          const y = y0 + (pad / 2) + ((h - pad) * (k + 0.5)) / n;
+          nodes.push(
+            <mesh key={`${sec.id}-tr-${k}`} position={[innerCenterX, y, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+              <cylinderGeometry args={[0.008, 0.008, innerW - 0.04, 16]} />
+              <meshStandardMaterial color="#c2c4c8" metalness={0.8} roughness={0.25} />
+            </mesh>
+          );
+        }
+        break;
+      }
+      case 'pull-out-basket': {
+        // Cosuri de sarma extensibile
+        const n = Math.max(1, Math.min(4, sec.basketCount ?? 2));
+        const gap = 0.01;
+        const basketH = (h - (n - 1) * gap) / n;
+        for (let k = 0; k < n; k++) {
+          const bY = y0 + basketH / 2 + k * (basketH + gap);
+          // rama cos
+          nodes.push(
+            <mesh key={`${sec.id}-bk-${k}`} position={[innerCenterX, bY, 0]} castShadow>
+              <boxGeometry args={[innerW - 0.02, basketH * 0.85, D - 0.05]} />
+              <meshStandardMaterial color="#d6d8da" metalness={0.4} roughness={0.5} transparent opacity={0.35} />
+              <Edges threshold={15} color="#6a6e74" lineWidth={1} />
+            </mesh>
+          );
+          // maner frontal
+          nodes.push(
+            <mesh key={`${sec.id}-bk-hd-${k}`} position={[innerCenterX, bY, D / 2 - 0.02]}>
+              <boxGeometry args={[Math.min(0.16, innerW * 0.3), 0.008, 0.006]} />
+              <meshStandardMaterial color={HANDLE_COLOR} metalness={0.55} roughness={0.35} />
+            </mesh>
+          );
+        }
+        break;
+      }
+      case 'mirror': {
+        // Panou oglinda lipit de peretele din spate
+        nodes.push(
+          <mesh key={`${sec.id}-mirror`} position={[innerCenterX, (y0 + y1) / 2, -D / 2 + T / 2 + 0.002]} castShadow receiveShadow>
+            <boxGeometry args={[innerW - 0.02, Math.max(0.02, h - 0.04), 0.005]} />
+            <meshStandardMaterial color="#e4ecf4" metalness={0.95} roughness={0.05} envMapIntensity={1.2} />
+            <Edges threshold={15} color="#6a6e74" lineWidth={0.6} />
+          </mesh>
+        );
         break;
       }
       case 'empty':

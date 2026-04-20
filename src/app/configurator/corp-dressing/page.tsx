@@ -10,6 +10,8 @@ import * as THREE from 'three';
 import Link from 'next/link';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import DressingUnitPanel from '@/components/configurator/DressingUnitPanel';
+import TylkoBottomDock from '@/components/configurator/TylkoBottomDock';
+import PriceHUD from '@/components/configurator/PriceHUD';
 import { useDressingUnitStore } from '@/store/dressingUnitStore';
 
 const DressingUnitModel = dynamic(
@@ -298,11 +300,17 @@ export default function CorpDressingPage() {
                 </Canvas>
               </Suspense>
 
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 hidden lg:block">
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 hidden lg:block">
                 <div className="bg-white/50 backdrop-blur-xl rounded-full px-4 py-1.5 text-[11px] text-brand-charcoal/35 border border-white/30 shadow-sm">
-                  🖱️ Click și trage pentru a roti • Scroll pentru zoom
+                  🖱️ Click și trage pentru a roti • Click pe un modul pentru a-l edita
                 </div>
               </div>
+
+              {/* Tylko-style dock: sliders dimensiuni */}
+              <TylkoBottomDock />
+
+              {/* Tylko-style HUD: preț + CTA */}
+              <PriceHUD />
             </div>
           </div>
         </div>
