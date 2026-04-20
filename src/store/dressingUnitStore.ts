@@ -18,7 +18,7 @@ export const DRESSING_UNIT_LIMITS = {
   plinthHeight:         { min: 0, max: 15, step: 0.1 },
   topCompartmentHeight: { min: 25, max: 60, step: 0.1 },
   sectionHeight:        { min: 15, max: 240, step: 1 },    // cm — inaltime sectiune (min = drawer minim realist)
-  drawerCount:          { min: 1, max: 5, step: 1 },
+  drawerCount:          { min: 1, max: 10, step: 1 },
   sectionShelfCount:    { min: 0, max: 6, step: 1 },
   sideColumns:          { min: 1, max: 3, step: 1 },
   sideColumnWidth:      { min: 20, max: 40, step: 0.1 },
@@ -84,267 +84,70 @@ export interface DressingModulePreset {
 }
 
 export const DRESSING_MODULE_PRESETS: DressingModulePreset[] = [
-  // 1. LONG HANG — single long rail (Tylko: "Long Hang")
+  // M1 — Bară + raft despărțitor mare (zonă deschisă)
   {
-    id: 'long-hang',
-    name: 'Bară lungă',
-    description: 'O bară pe toată înălțimea pentru paltoane, rochii, haine lungi.',
-    schematic: [{ type: 'hanging-rod', flex: 1 }],
-    build: (H) => [{ id: newSectionId(), type: 'hanging-rod', heightCm: Math.max(60, H) }],
-  },
-  // 2. SHORT HANG + SHELVES (Tylko: "Short Hang + Shelves")
-  {
-    id: 'short-hang-shelves',
-    name: 'Bară scurtă + rafturi',
-    description: 'Bară sus pentru cămăși/bluze, rafturi dedesubt pentru textile pliate.',
+    id: 'hang-shelf',
+    name: 'Bară + raft',
+    description: 'Bară sus pentru haine lungi, raft despărțitor la mijloc pentru zonă de depozitare jos.',
     schematic: [
       { type: 'hanging-rod', flex: 0.5 },
-      { type: 'shelves', flex: 0.5, shelves: 3 },
+      { type: 'shelves', flex: 0.5, shelves: 1 },
     ],
     build: (H) => {
-      const hang = Math.max(90, Math.round(H * 0.5));
-      const shelves = Math.max(40, H - hang);
+      // Regulă: sub bara de haine min 1100mm (110cm)
+      const hang = Math.max(110, Math.round(H * 0.5));
+      const bottom = Math.max(40, H - hang);
       return [
-        { id: newSectionId(), type: 'shelves', heightCm: shelves, shelfCount: 3 },
+        { id: newSectionId(), type: 'shelves', heightCm: bottom, shelfCount: 1 },
         { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
       ];
     },
   },
-  // 3. HANG + DRAWERS (Tylko: "Hang + Drawers")
+  // M2 — Bară lungă + sertare jos
   {
     id: 'hang-drawers',
     name: 'Bară + sertare',
-    description: 'Bară de haine sus, set de sertare jos pentru lenjerie și accesorii.',
+    description: 'Bară lungă pentru haine, sertare jos pentru lenjerie și accesorii.',
     schematic: [
-      { type: 'hanging-rod', flex: 0.68 },
-      { type: 'drawers', flex: 0.32, drawers: 3 },
-    ],
-    build: (H) => {
-      const drawers = Math.min(70, Math.max(50, Math.round(H * 0.32)));
-      const hang = Math.max(60, H - drawers);
-      return [
-        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 3 },
-        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
-      ];
-    },
-  },
-  // 4. DOUBLE HANG — 2 rails stacked (Tylko: "Double Hang")
-  {
-    id: 'double-hang',
-    name: 'Dublă bară',
-    description: 'Două bare suprapuse — dublează capacitatea pentru cămăși, bluze, pantaloni.',
-    schematic: [
-      { type: 'hanging-rod', flex: 0.5 },
-      { type: 'hanging-rod', flex: 0.5 },
-    ],
-    build: (H) => {
-      const half = Math.max(60, Math.round(H / 2));
-      return [
-        { id: newSectionId(), type: 'hanging-rod', heightCm: half },
-        { id: newSectionId(), type: 'hanging-rod', heightCm: Math.max(60, H - half) },
-      ];
-    },
-  },
-  // 5. SHELVES ONLY (Tylko: "Shelves")
-  {
-    id: 'shelves-only',
-    name: 'Doar rafturi',
-    description: 'Cinci rafturi distanțate egal — pulovere, blugi, textile pliate.',
-    schematic: [{ type: 'shelves', flex: 1, shelves: 5 }],
-    build: (H) => [{ id: newSectionId(), type: 'shelves', heightCm: Math.max(60, H), shelfCount: 5 }],
-  },
-  // 6. DRAWERS ONLY (Tylko: "Drawers")
-  {
-    id: 'drawers-only',
-    name: 'Doar sertare',
-    description: 'Coloană completă de sertare — ideal pentru lenjerie, accesorii, tricouri.',
-    schematic: [{ type: 'drawers', flex: 1, drawers: 5 }],
-    build: (H) => [{ id: newSectionId(), type: 'drawers', heightCm: Math.max(80, H), drawerCount: 5 }],
-  },
-  // 7. SHOES (Tylko: "Shoes") — shoe rack column
-  {
-    id: 'shoes',
-    name: 'Pantofi',
-    description: 'Coloană de rafturi înclinate pentru pantofi + raft jos pentru cutii.',
-    schematic: [
-      { type: 'shoe-rack', flex: 0.75 },
-      { type: 'shelves', flex: 0.25, shelves: 0 },
-    ],
-    build: (H) => {
-      const bottom = 40;
-      const shoes = Math.max(70, H - bottom);
-      return [
-        { id: newSectionId(), type: 'shelves', heightCm: bottom, shelfCount: 0 },
-        { id: newSectionId(), type: 'shoe-rack', heightCm: shoes, shoeCount: Math.max(3, Math.round(shoes / 25)) },
-      ];
-    },
-  },
-  // 8. COMBO / MIX (Tylko: "Combo") — shelves + rod + drawers cu accesorii
-  {
-    id: 'combo',
-    name: 'Combo complet',
-    description: 'Rafturi sus, bară la mijloc, sertare jos + suport pantaloni — organizare totală.',
-    schematic: [
-      { type: 'shelves', flex: 0.22, shelves: 2 },
-      { type: 'hanging-rod', flex: 0.4 },
-      { type: 'pull-out-trouser', flex: 0.18 },
-      { type: 'drawers', flex: 0.2, drawers: 2 },
-    ],
-    build: (H) => {
-      const drawers = 50;
-      const trousers = 55;
-      const shelves = Math.max(30, Math.round((H - drawers - trousers) * 0.3));
-      const hang = Math.max(60, H - drawers - trousers - shelves);
-      return [
-        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 2 },
-        { id: newSectionId(), type: 'pull-out-trouser', heightCm: trousers, trouserRodCount: 4 },
-        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
-        { id: newSectionId(), type: 'shelves', heightCm: shelves, shelfCount: 2 },
-      ];
-    },
-  },
-  // 9. SHELVES + DRAWERS (Tylko: "Shelves + Drawers")
-  {
-    id: 'shelves-drawers',
-    name: 'Rafturi + sertare',
-    description: 'Rafturi sus pentru pulovere/cutii, sertare jos pentru lenjerie.',
-    schematic: [
-      { type: 'shelves', flex: 0.65, shelves: 4 },
-      { type: 'drawers', flex: 0.35, drawers: 3 },
-    ],
-    build: (H) => {
-      const drawers = Math.min(75, Math.max(50, Math.round(H * 0.35)));
-      const shelves = Math.max(60, H - drawers);
-      return [
-        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 3 },
-        { id: newSectionId(), type: 'shelves', heightCm: shelves, shelfCount: 4 },
-      ];
-    },
-  },
-  // 10. MIRROR + HANG (oglindă plus bară)
-  {
-    id: 'mirror-hang',
-    name: 'Oglindă + bară',
-    description: 'Panou oglindă sus, bară de haine dedesubt — util pentru dressing-uri mici.',
-    schematic: [
-      { type: 'mirror', flex: 0.45 },
-      { type: 'hanging-rod', flex: 0.55 },
-    ],
-    build: (H) => {
-      const mirror = Math.max(80, Math.round(H * 0.45));
-      const hang = Math.max(60, H - mirror);
-      return [
-        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
-        { id: newSectionId(), type: 'mirror', heightCm: mirror },
-      ];
-    },
-  },
-  // 11. SHOES + DRAWERS (pantofi sus, sertare jos sau invers)
-  {
-    id: 'shoes-drawers',
-    name: 'Pantofi + sertare',
-    description: 'Rafturi înclinate pentru pantofi, sertare jos pentru șosete și accesorii.',
-    schematic: [
-      { type: 'shoe-rack', flex: 0.6 },
-      { type: 'drawers', flex: 0.4, drawers: 3 },
-    ],
-    build: (H) => {
-      const drawers = Math.min(75, Math.max(50, Math.round(H * 0.4)));
-      const shoes = Math.max(60, H - drawers);
-      return [
-        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 3 },
-        { id: newSectionId(), type: 'shoe-rack', heightCm: shoes, shoeCount: Math.max(3, Math.round(shoes / 25)) },
-      ];
-    },
-  },
-  // 12. TRIPLE SHELVES SPLIT (3 zone rafturi cu intervale diferite)
-  {
-    id: 'shelves-triple',
-    name: 'Rafturi triple',
-    description: 'Trei zone de rafturi cu distanțe diferite — cutii jos, pulovere mijloc, decorațiuni sus.',
-    schematic: [
-      { type: 'shelves', flex: 0.3, shelves: 2 },
-      { type: 'shelves', flex: 0.35, shelves: 3 },
-      { type: 'shelves', flex: 0.35, shelves: 2 },
-    ],
-    build: (H) => {
-      const bot = Math.round(H * 0.3);
-      const mid = Math.round(H * 0.35);
-      const top = Math.max(40, H - bot - mid);
-      return [
-        { id: newSectionId(), type: 'shelves', heightCm: bot, shelfCount: 2 },
-        { id: newSectionId(), type: 'shelves', heightCm: mid, shelfCount: 3 },
-        { id: newSectionId(), type: 'shelves', heightCm: top, shelfCount: 2 },
-      ];
-    },
-  },
-  // 13. BASKETS ONLY (coșuri metalice)
-  {
-    id: 'baskets-only',
-    name: 'Doar coșuri',
-    description: 'Coloană completă de coșuri din sârmă — ideal pentru tricouri, lenjerie, textile.',
-    schematic: [{ type: 'pull-out-basket', flex: 1 }],
-    build: (H) => [{ id: newSectionId(), type: 'pull-out-basket', heightCm: Math.max(80, H), basketCount: Math.max(3, Math.round(H / 30)) }],
-  },
-  // 14. HANG + SHELVES + DRAWERS (Tylko: "Hang + Shelves + Drawers" — compoziție triplă)
-  {
-    id: 'hang-shelves-drawers',
-    name: 'Bară + rafturi + sertare',
-    description: 'Bară sus, două rafturi mijloc, sertare jos — cea mai versatilă compoziție.',
-    schematic: [
-      { type: 'hanging-rod', flex: 0.45 },
-      { type: 'shelves', flex: 0.25, shelves: 2 },
-      { type: 'drawers', flex: 0.3, drawers: 2 },
-    ],
-    build: (H) => {
-      const drawers = Math.min(70, Math.max(45, Math.round(H * 0.3)));
-      const shelves = Math.max(40, Math.round(H * 0.25));
-      const hang = Math.max(70, H - drawers - shelves);
-      return [
-        { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 2 },
-        { id: newSectionId(), type: 'shelves', heightCm: shelves, shelfCount: 2 },
-        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
-      ];
-    },
-  },
-  // 15. TROUSERS + HANG (pantaloni jos, bară sus)
-  {
-    id: 'trousers-hang',
-    name: 'Pantaloni + bară',
-    description: 'Suport pantaloni cu bare extensibile jos, bară pentru sacouri/cămăși sus.',
-    schematic: [
-      { type: 'hanging-rod', flex: 0.6 },
-      { type: 'pull-out-trouser', flex: 0.4 },
-    ],
-    build: (H) => {
-      const trousers = Math.min(70, Math.max(50, Math.round(H * 0.4)));
-      const hang = Math.max(70, H - trousers);
-      return [
-        { id: newSectionId(), type: 'pull-out-trouser', heightCm: trousers, trouserRodCount: 4 },
-        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
-      ];
-    },
-  },
-  // 16. DRAWERS + SHELVES + MIRROR (dressing tip damă: oglindă sus)
-  {
-    id: 'vanity',
-    name: 'Dressing cu oglindă',
-    description: 'Oglindă sus, bară de haine mijloc, sertare jos — stil dressing feminin.',
-    schematic: [
-      { type: 'mirror', flex: 0.3 },
-      { type: 'hanging-rod', flex: 0.4 },
+      { type: 'hanging-rod', flex: 0.7 },
       { type: 'drawers', flex: 0.3, drawers: 3 },
     ],
     build: (H) => {
+      // Regulă: sub bara de haine min 1100mm
       const drawers = Math.min(70, Math.max(50, Math.round(H * 0.3)));
-      const mirror = Math.max(60, Math.round(H * 0.3));
-      const hang = Math.max(60, H - drawers - mirror);
+      const hang = Math.max(110, H - drawers);
       return [
         { id: newSectionId(), type: 'drawers', heightCm: drawers, drawerCount: 3 },
         { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
-        { id: newSectionId(), type: 'mirror', heightCm: mirror },
       ];
     },
+  },
+  // M3 — Bară scurtă sus + 4 rafturi jos
+  {
+    id: 'short-hang-shelves',
+    name: 'Bară scurtă + rafturi',
+    description: 'Bară scurtă sus pentru cămăși/bluze, patru rafturi dedesubt pentru textile pliate.',
+    schematic: [
+      { type: 'hanging-rod', flex: 0.4 },
+      { type: 'shelves', flex: 0.6, shelves: 4 },
+    ],
+    build: (H) => {
+      // "Scurtă" dar respectã minim 1100mm liber sub barã
+      const hang = Math.max(110, Math.round(H * 0.4));
+      const shelves = Math.max(40, H - hang);
+      return [
+        { id: newSectionId(), type: 'shelves', heightCm: shelves, shelfCount: 4 },
+        { id: newSectionId(), type: 'hanging-rod', heightCm: hang },
+      ];
+    },
+  },
+  // M4 — Coloană completă de rafturi dense
+  {
+    id: 'shelves-only',
+    name: 'Rafturi dense',
+    description: 'Coloană completă cu opt rafturi distanțate egal — pulovere, blugi, textile pliate.',
+    schematic: [{ type: 'shelves', flex: 1, shelves: 8 }],
+    build: (H) => [{ id: newSectionId(), type: 'shelves', heightCm: Math.max(60, H), shelfCount: 8 }],
   },
 ];
 
@@ -397,8 +200,10 @@ function defaultModule(width = 100, interiorType: DressingInteriorType = 'bara-r
 
 /** Hydreaza sectiuni daca un modul vine fara ele (backward-compat cu presets/persisted state) */
 function ensureSections(m: DressingModuleConfig, bodyHeightCm = 180): DressingModuleConfig {
-  if (m.sections && m.sections.length > 0) return m;
-  return { ...m, sections: sectionsForInteriorType(m.interiorType, bodyHeightCm) };
+  if (m.sections && m.sections.length > 0) {
+    return { ...m, sections: enforceDrawerPosition(m.sections) };
+  }
+  return { ...m, sections: enforceDrawerPosition(sectionsForInteriorType(m.interiorType, bodyHeightCm)) };
 }
 
 // ===== PRESETS (preconfigurari moderne) =====
@@ -414,6 +219,48 @@ export interface DressingPreset {
 }
 
 export const DRESSING_PRESETS: DressingPreset[] = [
+  {
+    id: 'schema-4mod',
+    name: 'Schemă 4 module',
+    description: 'Bară + raft mare · Bară + 3 sertare · Bară scurtă + rafturi · Rafturi dense.',
+    modules: [
+      // M1: barã sus + raft despãrţitor jos (zonã mare)
+      {
+        width: 90, interiorType: 'bara-raft', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 40,
+        sections: [
+          { id: newSectionId(), type: 'shelves', heightCm: 82, shelfCount: 1 },
+          { id: newSectionId(), type: 'hanging-rod', heightCm: 110 },
+        ],
+      },
+      // M2: barã lungã sus + 3 sertare jos
+      {
+        width: 90, interiorType: 'mixt', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 40,
+        sections: [
+          { id: newSectionId(), type: 'drawers', heightCm: 60, drawerCount: 3 },
+          { id: newSectionId(), type: 'hanging-rod', heightCm: 120 },
+        ],
+      },
+      // M3: barã scurtã sus + rafturi jos (bara respectã minim 1100mm liber)
+      {
+        width: 90, interiorType: 'mixt', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 40,
+        sections: [
+          { id: newSectionId(), type: 'shelves', heightCm: 82, shelfCount: 3 },
+          { id: newSectionId(), type: 'hanging-rod', heightCm: 110 },
+        ],
+      },
+      // M4: coloanã completã de rafturi dense
+      {
+        width: 90, interiorType: 'rafturi', hasDoors: false, hasTopCompartment: true, topCompartmentHeight: 40,
+        sections: [
+          { id: newSectionId(), type: 'shelves', heightCm: 180, shelfCount: 8 },
+        ],
+      },
+    ],
+    totalHeight: 240,
+    depth: 60,
+    plinthHeight: 8,
+    sideShelves: { position: 'right', columns: 1, columnWidth: 20, shelfCount: 0, layout: 'uniform' },
+  },
   {
     id: 'essential-compact',
     name: 'Essential Compact',
@@ -492,10 +339,14 @@ export const DRESSING_PRESETS: DressingPreset[] = [
 ];
 
 const defaultConfig: DressingUnitConfig = {
-  moduleCount: 3,
+  moduleCount: DRESSING_PRESETS[0].modules.length,
   modules: DRESSING_PRESETS[0].modules.map((m) => ensureSections({ ...m }, DRESSING_PRESETS[0].totalHeight - DRESSING_PRESETS[0].plinthHeight - (m.hasTopCompartment ? m.topCompartmentHeight : 0))),
   sideShelves: { ...DRESSING_PRESETS[0].sideShelves },
-  totalWidth: 270,
+  totalWidth: DRESSING_PRESETS[0].modules.reduce((a, m) => a + m.width, 0) + (
+    DRESSING_PRESETS[0].sideShelves.position === 'none' ? 0 :
+    DRESSING_PRESETS[0].sideShelves.position === 'both' ? 2 * DRESSING_PRESETS[0].sideShelves.columnWidth :
+    DRESSING_PRESETS[0].sideShelves.columnWidth
+  ),
   totalHeight: DRESSING_PRESETS[0].totalHeight,
   depth: DRESSING_PRESETS[0].depth,
   plinthHeight: DRESSING_PRESETS[0].plinthHeight,
@@ -520,8 +371,37 @@ function sumSectionsH(sections: DressingModuleSection[]): number {
   return sections.reduce((s, sec) => s + sec.heightCm, 0);
 }
 
-function sectionMinH(sec: DressingModuleSection): number {
+export function sectionMinH(sec: DressingModuleSection): number {
   return Math.max(DRESSING_UNIT_LIMITS.sectionHeight.min, SECTION_MIN_HEIGHT[sec.type]);
+}
+
+/**
+ * Reguli constructive pentru sertare:
+ *  - Sertarele pot exista doar in primele 1200mm de la baza modulului.
+ *  - Orice sertar care depaseste pragul sau care apare dupa o sectiune non-sertar aflata sub prag
+ *    este convertit automat in rafturi (shelves).
+ * Secțiunile sunt ordonate bottom → top (index 0 = jos).
+ */
+function enforceDrawerPosition(sections: DressingModuleSection[]): DressingModuleSection[] {
+  const DRAWER_MAX_TOP_CM = 120; // limita de la baza modulului pana la varful ultimului sertar permis
+  let accY = 0;            // inaltime cumulata de jos in sus (cm)
+  let drawersBlocked = false; // devine true dupa prima sectiune non-drawer sau la depasirea pragului
+  return sections.map((sec) => {
+    const topY = accY + sec.heightCm;
+    if (sec.type === 'drawers') {
+      if (drawersBlocked || topY > DRAWER_MAX_TOP_CM) {
+        accY = topY;
+        drawersBlocked = true;
+        return { ...sec, type: 'shelves' as DressingSectionType, shelfCount: Math.max(1, Math.round(sec.heightCm / 30)) };
+      }
+      accY = topY;
+      return sec;
+    }
+    // orice sectiune non-drawer blocheaza sertarele care ar urma
+    drawersBlocked = true;
+    accY = topY;
+    return sec;
+  });
 }
 
 /** Rescaleaza proportional toate sectiunile sa insumeze exact `targetH`, cu respectarea minimelor. */
@@ -1336,7 +1216,8 @@ export const useDressingUnitStore = create<DressingUnitState>((set, get) => ({
     if (!m) return;
     const targetH = moduleInteriorHeight(prev, m);
     const rawSections = preset.build(targetH);
-    const normalized = normalizeSections(rawSections, targetH);
+    const constrained = enforceDrawerPosition(rawSections);
+    const normalized = normalizeSections(constrained, targetH);
     const nextModules = prev.modules.map((mm, i) => (i === index ? { ...mm, sections: normalized } : mm));
     commit(set, { ...prev, modules: nextModules });
   },

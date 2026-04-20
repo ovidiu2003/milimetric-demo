@@ -16,6 +16,7 @@ import {
   DRESSING_MODULE_PRESETS,
   DressingUnitStep,
   moduleInteriorHeight,
+  sectionMinH,
 } from '@/store/dressingUnitStore';
 import { materialTypes, getBodyMaterials, getFrontMaterials, getMaterialById } from '@/data/materials';
 import { useTextures } from '@/hooks/useTextures';
@@ -251,13 +252,15 @@ function SizeStep() {
   const setTotalModulesWidth = useDressingUnitStore((s) => s.setTotalModulesWidth);
   const setTotalHeight = useDressingUnitStore((s) => s.setTotalHeight);
   const setDepth = useDressingUnitStore((s) => s.setDepth);
-  const setPlinthHeight = useDressingUnitStore((s) => s.setPlinthHeight);
+  const setModuleCount = useDressingUnitStore((s) => s.setModuleCount);
+  const setSideShelvesPosition = useDressingUnitStore((s) => s.setSideShelvesPosition);
+  const setSideShelvesColumns = useDressingUnitStore((s) => s.setSideShelvesColumns);
+  const setSideShelvesColumnWidth = useDressingUnitStore((s) => s.setSideShelvesColumnWidth);
+  const setSideShelvesShelfCount = useDressingUnitStore((s) => s.setSideShelvesShelfCount);
+  const setSideShelvesLayout = useDressingUnitStore((s) => s.setSideShelvesLayout);
+  const [showSide, setShowSide] = useState(c.sideShelves.position !== 'none');
+  useEffect(() => { if (c.sideShelves.position !== 'none') setShowSide(true); }, [c.sideShelves.position]);
   const totalModulesW = c.modules.reduce((a, m) => a + m.width, 0);
-  const sizePresets = [
-    { label: 'Compact',  w: 200, h: 230 },
-    { label: 'Standard', w: 250, h: 240 },
-    { label: 'Mare',     w: 300, h: 260 },
-  ];
   return (
     <div className="animate-step-in space-y-4 pt-1">
       <StepHeading title={stepMeta.size.title} subtitle={stepMeta.size.subtitle} />
@@ -275,81 +278,15 @@ function SizeStep() {
         </div>
       </div>
 
-      {/* Quick presets dimensiuni */}
-      <div>
-        <div className="text-[10px] uppercase tracking-[0.1em] text-brand-charcoal/50 font-semibold mb-1.5">Dimensiuni rapide</div>
-        <div className="grid grid-cols-3 gap-1.5">
-          {sizePresets.map((p) => {
-            const isActive = Math.abs(totalModulesW - p.w) < 1 && Math.abs(c.totalHeight - p.h) < 1;
-            return (
-              <button key={p.label} onClick={() => { setTotalModulesWidth(p.w); setTotalHeight(p.h); }}
-                className={`rounded-lg border-2 px-2 py-2 text-center transition-all ${isActive ? 'border-brand-accent bg-brand-accent/5' : 'border-brand-beige/30 bg-white hover:border-brand-beige/60'}`}>
-                <div className={`text-[11.5px] font-bold ${isActive ? 'text-brand-accent' : 'text-brand-dark'}`}>{p.label}</div>
-                <div className="text-[9.5px] text-brand-charcoal/50 tabular-nums">{p.w * 10} × {p.h * 10} mm</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       <BigSlider label="Lățime module (fără bibliotecă)" value={totalModulesW} min={c.modules.length * DRESSING_UNIT_LIMITS.moduleWidth.min} max={c.modules.length * DRESSING_UNIT_LIMITS.moduleWidth.max} step={DRESSING_UNIT_LIMITS.totalModulesWidth.step} unit="mm" scale={10} onChange={setTotalModulesWidth} tickStep={500} />
       <BigSlider label="Înălțime" value={c.totalHeight} min={DRESSING_UNIT_LIMITS.totalHeight.min} max={DRESSING_UNIT_LIMITS.totalHeight.max} step={DRESSING_UNIT_LIMITS.totalHeight.step} unit="mm" scale={10} onChange={setTotalHeight} tickStep={200} />
       <BigSlider label="Adâncime" value={c.depth} min={DRESSING_UNIT_LIMITS.depth.min} max={DRESSING_UNIT_LIMITS.depth.max} step={DRESSING_UNIT_LIMITS.depth.step} unit="mm" scale={10} onChange={setDepth} tickStep={50} />
-      <BigSlider label="Plintă" value={c.plinthHeight} min={DRESSING_UNIT_LIMITS.plinthHeight.min} max={DRESSING_UNIT_LIMITS.plinthHeight.max} step={DRESSING_UNIT_LIMITS.plinthHeight.step} unit="mm" scale={10} onChange={setPlinthHeight} tickStep={50} />
-    </div>
-  );
-}
 
-function LayoutStep() {
-  const c = useDressingUnitStore((s) => s.config);
-  const setModuleCount = useDressingUnitStore((s) => s.setModuleCount);
-  const setModuleWidth = useDressingUnitStore((s) => s.setModuleWidth);
-  const applyPreset = useDressingUnitStore((s) => s.applyPreset);
-  const setSideShelvesPosition = useDressingUnitStore((s) => s.setSideShelvesPosition);
-  const setSideShelvesColumns = useDressingUnitStore((s) => s.setSideShelvesColumns);
-  const setSideShelvesColumnWidth = useDressingUnitStore((s) => s.setSideShelvesColumnWidth);
-  const setSideShelvesShelfCount = useDressingUnitStore((s) => s.setSideShelvesShelfCount);
-  const setSideShelvesLayout = useDressingUnitStore((s) => s.setSideShelvesLayout);
-  const [showSide, setShowSide] = useState(c.sideShelves.position !== 'none');
-  // Auto-sync: dacă biblioteca laterală e activată extern (din alt pas), deschide accordion-ul.
-  useEffect(() => { if (c.sideShelves.position !== 'none') setShowSide(true); }, [c.sideShelves.position]);
-  return (
-    <div className="animate-step-in space-y-4 pt-1">
-      <StepHeading title={stepMeta.layout.title} subtitle={stepMeta.layout.subtitle} />
-      <LockedDimsBanner />
-      <section>
-        <div className="flex items-center gap-1.5 mb-2"><Sparkles className="w-3 h-3 text-brand-accent" /><h3 className="text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Puncte de plecare</h3></div>
-        <div className="grid grid-cols-2 gap-2">
-          {DRESSING_PRESETS.map((p) => (
-            <button key={p.id} onClick={() => applyPreset(p.id)} title={p.description}
-              className="group text-left p-2.5 rounded-xl border-2 border-brand-beige/30 bg-white hover:border-brand-accent/50 hover:bg-brand-accent/5 transition-all">
-              <div className="flex items-center gap-1 mb-1">
-                <div className="flex gap-0.5">{Array.from({ length: p.modules.length }).map((_, i) => (<div key={i} className="w-1 h-5 rounded-sm bg-brand-accent/40 group-hover:bg-brand-accent/70 transition-colors" />))}</div>
-                <span className="ml-auto text-[9px] tabular-nums text-brand-charcoal/40">{p.modules.length} module</span>
-              </div>
-              <div className="text-[12px] font-bold text-brand-dark group-hover:text-brand-accent leading-tight">{p.name}</div>
-              <div className="text-[10px] text-brand-charcoal/50 mt-0.5 leading-snug line-clamp-2">{p.description}</div>
-            </button>
-          ))}
-        </div>
-      </section>
       <section>
         <div className="flex items-center gap-1.5 mb-2"><Blocks className="w-3 h-3 text-brand-charcoal/40" /><h3 className="text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Număr module</h3></div>
         <StepperButton label="Module în dressing" value={c.moduleCount} min={DRESSING_UNIT_LIMITS.moduleCount.min} max={DRESSING_UNIT_LIMITS.moduleCount.max} onChange={setModuleCount} unit="buc" />
       </section>
-      <section>
-        <div className="flex items-center gap-1.5 mb-2"><Ruler className="w-3 h-3 text-brand-charcoal/40" /><h3 className="text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Lățime per modul</h3></div>
-        <div className="space-y-1.5">
-          {c.modules.map((m, i) => (
-            <div key={i} className="flex items-center gap-2.5 rounded-xl bg-white border border-brand-beige/30 px-2.5 py-2">
-              <div className="shrink-0 w-6 h-6 rounded-lg bg-brand-charcoal/10 text-brand-charcoal/70 flex items-center justify-center text-[10.5px] font-bold">{i + 1}</div>
-              <div className="flex-1 min-w-0">
-                <BigSlider label="Lățime" value={m.width} min={DRESSING_UNIT_LIMITS.moduleWidth.min} max={DRESSING_UNIT_LIMITS.moduleWidth.max} step={DRESSING_UNIT_LIMITS.moduleWidth.step} unit="mm" scale={10} onChange={(v) => setModuleWidth(i, v)} tickStep={200} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+
       <section>
         <button onClick={() => setShowSide((v) => !v)} className="w-full flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold mb-2 hover:text-brand-charcoal/80 transition-colors">
           <span className="flex items-center gap-1.5"><PanelsTopLeft className="w-3 h-3" />Bibliotecă laterală{c.sideShelves.position !== 'none' && (<span className="text-[9px] bg-brand-accent/10 text-brand-accent px-1.5 py-0.5 rounded-full font-bold lowercase tracking-normal">activă</span>)}</span>
@@ -378,6 +315,62 @@ function LayoutStep() {
             )}
           </div>
         )}
+      </section>
+    </div>
+  );
+}
+
+function LayoutStep() {
+  const c = useDressingUnitStore((s) => s.config);
+  const setModuleWidth = useDressingUnitStore((s) => s.setModuleWidth);
+  const setPlinthHeight = useDressingUnitStore((s) => s.setPlinthHeight);
+  const applyPreset = useDressingUnitStore((s) => s.applyPreset);
+  return (
+    <div className="animate-step-in space-y-4 pt-1">
+      <StepHeading title={stepMeta.layout.title} subtitle={stepMeta.layout.subtitle} />
+      <LockedDimsBanner />
+      <section>
+        <div className="flex items-center gap-1.5 mb-2"><Sparkles className="w-3 h-3 text-brand-accent" /><h3 className="text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Puncte de plecare</h3></div>
+        <div className="grid grid-cols-2 gap-2">
+          {DRESSING_PRESETS.map((p) => (
+            <button key={p.id} onClick={() => applyPreset(p.id)} title={p.description}
+              className="group text-left p-2.5 rounded-xl border-2 border-brand-beige/30 bg-white hover:border-brand-accent/50 hover:bg-brand-accent/5 transition-all">
+              <div className="flex items-center gap-1 mb-1">
+                <div className="flex gap-0.5">{Array.from({ length: p.modules.length }).map((_, i) => (<div key={i} className="w-1 h-5 rounded-sm bg-brand-accent/40 group-hover:bg-brand-accent/70 transition-colors" />))}</div>
+                <span className="ml-auto text-[9px] tabular-nums text-brand-charcoal/40">{p.modules.length} module</span>
+              </div>
+              <div className="text-[12px] font-bold text-brand-dark group-hover:text-brand-accent leading-tight">{p.name}</div>
+              <div className="text-[10px] text-brand-charcoal/50 mt-0.5 leading-snug line-clamp-2">{p.description}</div>
+            </button>
+          ))}
+        </div>
+      </section>
+      <section>
+        <div className="flex items-center gap-1.5 mb-2"><Ruler className="w-3 h-3 text-brand-charcoal/40" /><h3 className="text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Lățime per modul</h3></div>
+        <div className="space-y-1.5">
+          {c.modules.map((m, i) => (
+            <div key={i} className="flex items-center gap-2.5 rounded-xl bg-white border border-brand-beige/30 px-2.5 py-2">
+              <div className="shrink-0 w-6 h-6 rounded-lg bg-brand-charcoal/10 text-brand-charcoal/70 flex items-center justify-center text-[10.5px] font-bold">{i + 1}</div>
+              <div className="flex-1 min-w-0">
+                <BigSlider label="Lățime" value={m.width} min={DRESSING_UNIT_LIMITS.moduleWidth.min} max={DRESSING_UNIT_LIMITS.moduleWidth.max} step={DRESSING_UNIT_LIMITS.moduleWidth.step} unit="mm" scale={10} onChange={(v) => setModuleWidth(i, v)} tickStep={200} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section>
+        <div className="flex items-center gap-1.5 mb-2"><Ruler className="w-3 h-3 text-brand-charcoal/40" /><h3 className="text-[11px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Plintă</h3></div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {[8, 10].map((h) => (
+            <OptionCard
+              key={h}
+              active={Math.round(c.plinthHeight) === h}
+              onClick={() => setPlinthHeight(h)}
+              title={`${h * 10} mm`}
+              subtitle={h === 8 ? 'Standard' : 'Înaltă'}
+            />
+          ))}
+        </div>
       </section>
     </div>
   );
@@ -475,6 +468,7 @@ function PresetCarousel({ activeIdx, activePresetId, apply }: {
 function InteriorStep() {
   const c = useDressingUnitStore((s) => s.config);
   const applyModulePreset = useDressingUnitStore((s) => s.applyModulePreset);
+  const updateModuleSection = useDressingUnitStore((s) => s.updateModuleSection);
   const setModuleTopCompartmentHeight = useDressingUnitStore((s) => s.setModuleTopCompartmentHeight);
   const toggleModuleDoors = useDressingUnitStore((s) => s.toggleModuleDoors);
   const toggleAllDoors = useDressingUnitStore((s) => s.toggleAllDoors);
@@ -531,6 +525,86 @@ function InteriorStep() {
 
       {/* ─── CAROUSEL PRESETURI (un preset vizibil + săgeți prev/next) ─── */}
       <PresetCarousel activeIdx={activeIdx} activePresetId={activePresetId} apply={applyModulePreset} />
+
+      {/* ─── PERSONALIZARE SECȚIUNI (rafturi / sertare per modul) ─── */}
+      {(() => {
+        const editable = (activeModule.sections || []).filter((s) => s.type === 'shelves' || s.type === 'drawers');
+        if (editable.length === 0) return null;
+        return (
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-[10.5px] uppercase tracking-[0.1em] text-brand-charcoal/55 font-semibold">Personalizează modulul</span>
+              <span className="ml-auto text-[9.5px] text-brand-charcoal/40">min 200mm / element</span>
+            </div>
+            <div className="space-y-1.5">
+              {editable.map((sec) => {
+                const H = sec.heightCm; // cm
+                if (sec.type === 'shelves') {
+                  // N rafturi interne → N+1 spații; spacing ≥ 20cm ⇒ N ≤ H/20 − 1
+                  const maxByRule = Math.max(0, Math.floor(H / 20) - 1);
+                  const maxN = Math.min(DRESSING_UNIT_LIMITS.sectionShelfCount.max, maxByRule);
+                  const value = sec.shelfCount ?? 1;
+                  const spacing = Math.round((H * 10) / (value + 1)); // mm
+                  return (
+                    <div key={sec.id}>
+                      <StepperButton
+                        label={`Rafturi (${Math.round(H * 10)}mm)`}
+                        value={Math.min(value, maxN)}
+                        min={0}
+                        max={maxN}
+                        onChange={(v) => updateModuleSection(activeIdx, sec.id, { shelfCount: v })}
+                      />
+                      <div className="text-[9.5px] text-brand-charcoal/45 mt-0.5 ml-1 tabular-nums">
+                        Distanță ≈ {spacing}mm între rafturi · max {maxN}
+                      </div>
+                    </div>
+                  );
+                }
+                // drawers: drawerH = H/N ≥ 20cm ⇒ N ≤ H/20
+                // Permitem extinderea secțiunii pe seama celorlalte (pînă la minimul lor)
+                // → sub bara de haine rămîne min 1100mm (sectionMinH garantează).
+                const sections = activeModule.sections || [];
+                const expandable = sections.reduce((acc, s) => {
+                  if (s.id === sec.id) return acc;
+                  return acc + Math.max(0, s.heightCm - sectionMinH(s));
+                }, 0);
+                const maxSectionH = H + expandable;
+                const maxByRule = Math.max(1, Math.floor(maxSectionH / 20));
+                const maxN = Math.min(DRESSING_UNIT_LIMITS.drawerCount.max, maxByRule);
+                const value = sec.drawerCount ?? 2;
+                const drawerH = Math.round((H * 10) / value); // mm
+                const handleDrawerChange = (v: number) => {
+                  // Dacă N nou cere o înălțime mai mare decît cea curentă, extindem secțiunea
+                  const needed = v * 20; // cm
+                  if (needed > H) {
+                    updateModuleSection(activeIdx, sec.id, { heightCm: Math.min(maxSectionH, needed) });
+                  }
+                  updateModuleSection(activeIdx, sec.id, { drawerCount: v });
+                };
+                return (
+                  <div key={sec.id}>
+                    <StepperButton
+                      label={`Sertare (${Math.round(H * 10)}mm)`}
+                      value={Math.min(value, maxN)}
+                      min={1}
+                      max={maxN}
+                      onChange={handleDrawerChange}
+                    />
+                    <div className="text-[9.5px] text-brand-charcoal/45 mt-0.5 ml-1 tabular-nums">
+                      Înălțime sertar ≈ {drawerH}mm · max {maxN}
+                    </div>
+                  </div>
+                );
+              })}
+              {(activeModule.sections || []).some((s) => s.type === 'hanging-rod') && (
+                <div className="text-[10px] text-brand-charcoal/50 italic px-1">
+                  Sub bara de haine este păstrat minim 1100mm liber.
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ─── AFIȘARE (echivalent "Display" din Tylko) ─── */}
       <div>

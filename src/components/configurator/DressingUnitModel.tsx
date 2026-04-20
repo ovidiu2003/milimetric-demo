@@ -326,7 +326,7 @@ export default function DressingUnitModel() {
           T={T}
           bodyMatProps={sideMatProps}
           bodyMatPropsH={sideMatPropsH}
-          frontMatProps={sideMatProps}
+          frontMatProps={frontMatProps}
         />
       )}
       {hasRightSide && (
@@ -343,7 +343,7 @@ export default function DressingUnitModel() {
           T={T}
           bodyMatProps={sideMatProps}
           bodyMatPropsH={sideMatPropsH}
-          frontMatProps={sideMatProps}
+          frontMatProps={frontMatProps}
         />
       )}
 
@@ -616,6 +616,7 @@ function ModuleGroup(props: ModuleProps) {
             MW={MW}
             D={D}
             T={T}
+            moduleIndex={props.index}
             frontMatProps={frontMatProps}
             HANDLE_COLOR={HANDLE_COLOR}
           />
@@ -660,6 +661,14 @@ function ModuleInterior({
   }
 
   const S = 0.01;
+  // Daca modulul contine sertare, polita are aceeasi adancime ca sertarele + 10mm in fata (iese cu 10mm peste frontul sertarului).
+  // Sertarele sunt retrase 80mm fata de frontul corpului => polita retrasa 70mm.
+  const hasDrawers = sections.some((s) => s.type === 'drawers');
+  const SHELF_FRONT_INSET = hasDrawers ? 0.07 : 0; // 70mm retras = 80mm sertar - 10mm
+  const shelfZMin = -D / 2 + T / 2;                 // spate (la fel ca inainte)
+  const shelfZMax = D / 2 - T / 2 - SHELF_FRONT_INSET;
+  const shelfDepth = shelfZMax - shelfZMin;
+  const shelfCenterZ = (shelfZMin + shelfZMax) / 2;
   // Calculam pozitiile reale (cu separatoare de grosime T intre sectiuni)
   // Daca suma sectiunilor + separatoare != innerH, scalam fin pt compensare
   const totalSectM = sections.reduce((s, sec) => s + sec.heightCm * S, 0);
@@ -687,8 +696,8 @@ function ModuleInterior({
           for (let k = 0; k < count; k++) {
             const y = y0 + (k + 1) * spacing;
             nodes.push(
-              <mesh key={`${sec.id}-sh-${k}`} position={[innerCenterX, y, 0]} castShadow receiveShadow>
-                <boxGeometry args={[innerW, T, D - T]} />
+              <mesh key={`${sec.id}-sh-${k}`} position={[innerCenterX, y, shelfCenterZ]} castShadow receiveShadow>
+                <boxGeometry args={[innerW, T, shelfDepth]} />
                 <meshStandardMaterial {...bodyMatPropsH} />
                 <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
               </mesh>
@@ -722,36 +731,27 @@ function ModuleInterior({
       }
       case 'drawers': {
         const dc = Math.max(1, Math.min(5, sec.drawerCount ?? 2));
-        const gap = 0.003;                     // 3mm gap intre sertare
-        const drawerH = (h - (dc - 1) * gap) / dc;
+        const gap = 0.03;                     // 30mm gap intre sertare (fara maner — clientul apuca frontul)
+        const FRONT_INSET = 0.08;             // 80mm retras fata de frontul corpului
+        const frontZ = D / 2 - T / 2 - FRONT_INSET;
+        // Daca urmeaza alta sectiune deasupra, lasam 30mm gap intre ultimul sertar si polita/panoul de sus
+        const topGap = isLast ? 0 : 0.03;
+        const usableH = Math.max(0.02, h - topGap);
+        const drawerH = (usableH - (dc - 1) * gap) / dc;
         for (let k = 0; k < dc; k++) {
           const dY = y0 + drawerH / 2 + k * (drawerH + gap);
           nodes.push(
             <HoverDrawer key={`${sec.id}-dw-${k}`} panelWidth={innerW}>
-              {/* Frontul sertarului — aliniat cu frontul corpului */}
-              <mesh position={[innerCenterX, dY, D / 2 - T / 2]} castShadow>
+              {/* Frontul sertarului — retras 80mm in interior pentru prindere ergonomica */}
+              <mesh position={[innerCenterX, dY, frontZ]} castShadow>
                 <boxGeometry args={[innerW - 0.004, drawerH - 0.002, T]} />
                 <meshStandardMaterial {...frontMatProps} />
                 <Edges threshold={15} color="#2a2218" lineWidth={1} />
               </mesh>
-              {/* Cutia sertarului (pereti vizibili dinspre exterior la glisare) */}
-              <mesh position={[innerCenterX, dY - drawerH * 0.05, -0.02]} castShadow receiveShadow>
-                <boxGeometry args={[innerW - 0.02, drawerH * 0.85, D - 0.04]} />
+              {/* Cutia sertarului — in spatele frontului */}
+              <mesh position={[innerCenterX, dY - drawerH * 0.05, frontZ - (D - 0.04) / 2 - T / 2]} castShadow receiveShadow>
+                <boxGeometry args={[innerW - 0.02, drawerH * 0.85, D - 0.04 - FRONT_INSET]} />
                 <meshStandardMaterial color="#e4dbc8" roughness={0.8} metalness={0.05} />
-              </mesh>
-              {/* Maner metalic orizontal aliniat la mijloc */}
-              <mesh position={[innerCenterX, dY, D / 2 + T / 2 + 0.004]}>
-                <boxGeometry args={[Math.min(0.18, innerW * 0.32), 0.01, 0.008]} />
-                <meshStandardMaterial color={HANDLE_COLOR} metalness={0.55} roughness={0.35} />
-              </mesh>
-              {/* Suport maner (2 mici) */}
-              <mesh position={[innerCenterX - Math.min(0.08, innerW * 0.14), dY, D / 2 + T / 2 + 0.002]}>
-                <boxGeometry args={[0.006, 0.006, 0.006]} />
-                <meshStandardMaterial color={HANDLE_COLOR} metalness={0.6} roughness={0.3} />
-              </mesh>
-              <mesh position={[innerCenterX + Math.min(0.08, innerW * 0.14), dY, D / 2 + T / 2 + 0.002]}>
-                <boxGeometry args={[0.006, 0.006, 0.006]} />
-                <meshStandardMaterial color={HANDLE_COLOR} metalness={0.6} roughness={0.3} />
               </mesh>
             </HoverDrawer>
           );
@@ -852,11 +852,18 @@ function ModuleInterior({
         break;
     }
 
-    // Separator intre sectiuni (panou orizontal) — nu si sub ultima
+    // Separator intre sectiuni (panou orizontal) — nu si sub ultima.
+    // Daca sectiunea curenta este de sertare, panoul de deasupra se retrage la nivel cu fronturile sertarelor (80mm).
     if (!isLast) {
+      const isAboveDrawers = sec.type === 'drawers';
+      const sepFrontInset = isAboveDrawers ? 0.06 : 0; // 60mm retras = sertar(80mm) - 20mm in exterior
+      const sepZMin = -D / 2 + T / 2;
+      const sepZMax = D / 2 - T / 2 - sepFrontInset;
+      const sepDepth = sepZMax - sepZMin;
+      const sepCenterZ = (sepZMin + sepZMax) / 2;
       nodes.push(
-        <mesh key={`${sec.id}-sep`} position={[innerCenterX, y1 + T / 2, 0]} castShadow receiveShadow>
-          <boxGeometry args={[innerW, T, D - T]} />
+        <mesh key={`${sec.id}-sep`} position={[innerCenterX, y1 + T / 2, sepCenterZ]} castShadow receiveShadow>
+          <boxGeometry args={[innerW, T, sepDepth]} />
           <meshStandardMaterial {...bodyMatPropsH} />
           <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
         </mesh>
@@ -991,11 +998,13 @@ function ModuleDoors({
   moduleLeftX, moduleRightX, moduleCenterX,
   bodyY0, bodyH, bodyMidY,
   MW, D, T,
+  moduleIndex,
   frontMatProps, HANDLE_COLOR,
 }: {
   moduleLeftX: number; moduleRightX: number; moduleCenterX: number;
   bodyY0: number; bodyH: number; bodyMidY: number;
   MW: number; D: number; T: number;
+  moduleIndex: number;
   frontMatProps: any; HANDLE_COLOR: string;
 }) {
   const doorH = bodyH - 0.004;
@@ -1012,11 +1021,16 @@ function ModuleDoors({
 
   if (singleDoor) {
     const doorW = MW - 0.004; // o singura usa, lasa cate 2mm la fiecare capat
+    // Module adiacente se deschid in parti opuse: par (0,2,4) → hinge stg, impar (1,3,5) → hinge dr
+    const hingeOnLeft = moduleIndex % 2 === 0;
+    const hingeSide: -1 | 1 = hingeOnLeft ? -1 : 1;
+    const hingeX = hingeOnLeft ? moduleLeftX + 0.001 : moduleRightX - 0.001;
+    const handleX = hingeOnLeft ? doorW / 2 - 0.015 : -doorW / 2 + 0.015;
     return (
       <group>
         <HoverDoor
-          hingeSide={-1}
-          hingePosition={[moduleLeftX + 0.001, bodyMidY, doorZ]}
+          hingeSide={hingeSide}
+          hingePosition={[hingeX, bodyMidY, doorZ]}
           panelWidth={doorW}
         >
           <mesh castShadow>
@@ -1025,7 +1039,7 @@ function ModuleDoors({
             <Edges threshold={15} color="#2a2218" lineWidth={1} />
           </mesh>
           {/* maner vertical pe partea opusa balamalei - de la baza pana la 1100mm */}
-          <mesh position={[doorW / 2 - 0.015, handleCenterY, T / 2 + 0.005]}>
+          <mesh position={[handleX, handleCenterY, T / 2 + 0.005]}>
             <boxGeometry args={[0.005, handleH, 0.01]} />
             <meshStandardMaterial color={HANDLE_COLOR} metalness={0.4} roughness={0.45} />
           </mesh>
@@ -1209,15 +1223,23 @@ function SideShelvesGroup({
       );
     });
   }
+  // Facade frontala: o singura placa in culoarea frontului, iar imediat in spate (suprapusa)
+  // o placa identica in culoarea bibliotecii/corp.
+  const frontFacadeZ = D / 2 + T / 2;          // placa din fata (culoare front)
+  const backFacadeZ  = D / 2 - T / 2;          // placa suprapusa in spate (culoare corp)
   return (
     <group>
-      {/* Panou FATA - facade in culoarea frontului (ca usile),
-          pozitionat in acelasi plan cu usile dressingului (D/2 + T/2),
-          pe toata inaltimea (de la podea la varf, fara plinta) */}
-      <mesh position={[centerX, bodyMidY, D / 2 + T / 2]} castShadow receiveShadow>
+      {/* Panou FATA (vizibil) - culoarea frontului, la fel ca usile */}
+      <mesh position={[centerX, bodyMidY, frontFacadeZ]} castShadow receiveShadow>
         <boxGeometry args={[libDepthX, bodyH - 0.004, T]} />
         <meshStandardMaterial {...frontMatProps} />
         <Edges threshold={15} color="#2a2218" lineWidth={1} />
+      </mesh>
+      {/* Panou suprapus in spatele fatadei - culoarea bibliotecii (corp), aceeasi dimensiune */}
+      <mesh position={[centerX, bodyMidY, backFacadeZ]} castShadow receiveShadow>
+        <boxGeometry args={[libDepthX, bodyH - 0.004, T]} />
+        <meshStandardMaterial {...bodyMatProps} />
+        <Edges threshold={15} color="#3a3228" lineWidth={0.6} />
       </mesh>
 
       {/* SPATE individual al bibliotecii - panou complet de la podea la top,
@@ -1249,6 +1271,8 @@ function SideShelvesGroup({
           </mesh>
         );
       })()}
+
+
 
       {/* Separatoare verticale intre coloane (pe Z) */}
       {separatorZs.map((z, i) => (

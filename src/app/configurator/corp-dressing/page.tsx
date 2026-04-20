@@ -8,7 +8,7 @@ import { EffectComposer, SSAO, SMAA } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
 import Link from 'next/link';
-import { Maximize2, Minimize2, Ruler } from 'lucide-react';
+import { Maximize2, Minimize2, Ruler, Eye, EyeOff } from 'lucide-react';
 import DressingUnitPanel from '@/components/configurator/DressingUnitPanel';
 import { useDressingUnitStore } from '@/store/dressingUnitStore';
 
@@ -223,6 +223,8 @@ export default function CorpDressingPage() {
   const config = useDressingUnitStore((s) => s.config);
   const showDimensions = useDressingUnitStore((s) => s.showDimensions);
   const toggleShowDimensions = useDressingUnitStore((s) => s.toggleShowDimensions);
+  const toggleAllDoors = useDressingUnitStore((s) => s.toggleAllDoors);
+  const anyDoors = config.modules.some((m) => m.hasDoors);
   const [isCanvasExpanded, setIsCanvasExpanded] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState('100dvh');
@@ -300,6 +302,18 @@ export default function CorpDressingPage() {
                 >
                   <Ruler className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
                   <span className="hidden sm:inline">Dimensiuni</span>
+                </button>
+                <button
+                  onClick={toggleAllDoors}
+                  title={anyDoors ? 'Ascunde fronturile' : 'Afi\u0219eaz\u0103 fronturile'}
+                  className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 lg:px-3 lg:py-2 shadow-lg border transition-all duration-200 backdrop-blur-xl text-[10px] lg:text-[11px] font-semibold ${
+                    anyDoors
+                      ? 'bg-brand-accent text-white border-brand-accent/60 hover:bg-brand-accent/90'
+                      : 'bg-white/70 text-brand-charcoal/65 border-white/40 hover:bg-white/90'
+                  }`}
+                >
+                  {anyDoors ? <Eye className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> : <EyeOff className="w-3.5 h-3.5 lg:w-4 lg:h-4" />}
+                  <span className="hidden sm:inline">Fronturi</span>
                 </button>
               </div>
 
